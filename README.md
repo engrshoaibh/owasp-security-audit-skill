@@ -8,7 +8,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ---
-[[https://api.scorecard.dev/projects/github.com/engrshoaibh/owasp-security-audit-skill/badge]](https://scorecard.dev/viewer/?uri=github.com/engrshoaibh/owasp-security-audit-skill)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/engrshoaibh/owasp-security-audit-skill/badge)](https://scorecard.dev/viewer/?uri=github.com/engrshoaibh/owasp-security-audit-skill)
 
 ## 📌 Table of Contents
 

@@ -1,0 +1,51 @@
+name: CI Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run Tests & Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "scripts/requirements-zap.txt"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/requirements-zap.txt
+
+      - name: Syntax & Compilation check
+        run: |
+          python -m py_compile scripts/loophole_scanner.py scripts/setup_tools.py scripts/zap_web_scan.py
+
+      - name: Test Tool Preflight Check
+        run: |
+          python scripts/setup_tools.py --check
+
+      - name: Test Loophole Scanner CLI
+        run: |
+          python scripts/loophole_scanner.py --help
+          python scripts/loophole_scanner.py --target . --format json
+
+      - name: Test ZAP Web Scan CLI
+        run: |
+          python scripts/zap_web_scan.py --help

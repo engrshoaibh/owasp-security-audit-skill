@@ -1,0 +1,4 @@
+# Optional Python API client for custom OWASP ZAP (Zed Attack Proxy) scripts
+# Note: scripts/zap_web_scan.py works with Python standard library alone,
+# and also detects if `zaproxy` is installed for custom ZAPv2 automation.
+zaproxy

@@ -13,6 +13,7 @@
 
 - [Overview](#-overview)
 - [Key Features](#-key-features)
+- [1-Click AI Agent Auto-Setup](#-1-click-ai-agent-auto-setup-zero-manual-work)
 - [How It Works: 3-Phase Progressive Disclosure](#-how-it-works-3-phase-progressive-disclosure)
 - [Quickstart: Step-by-Step Setup](#-quickstart-step-by-step-setup)
   - [Prerequisites](#1-prerequisites)
@@ -50,6 +51,31 @@ The **OWASP Security Audit Skill** resolves both issues. It acts as an intellige
 - **Built-in Static Loophole & Resource Exhaustion Scanner:** Standard-library scanner detecting hardcoded secrets, injection sinks, broken auth, permissive CORS, and resource exhaustion loops (ReDoS, unbounded while loops, unconstrained agent loops, and TOCTOU races).
 - **Multi-Tool Orchestrator:** Seamlessly coordinates with Gitleaks, TruffleHog, Semgrep, Trivy, OSV-Scanner, Checkov, Bandit, Pip-Audit, Nuclei, FFUF, Schemathesis, and SQLMap.
 - **Cross-Platform Compatibility:** Native support for Windows (Scoop, Winget, Chocolatey), macOS (Homebrew), and Linux (Homebrew, apt, native packages).
+
+---
+
+## ⚡ 1-Click AI Agent Auto-Setup (Zero Manual Work)
+
+You don't need to manually configure environments, package managers, or security scanners. Give your AI coding agent (Google Antigravity, Claude Code, Cursor, Windsurf, Codex) this single prompt:
+
+> 💬 **Prompt to Give Your Agent:**  
+> *"Setup this security audit skill globally from https://github.com/engrshoaibh/owasp-security-audit-skill.git, install all missing security tools, and verify the installation."*
+
+### 🛠 What the Agent Automatically Executes:
+1. **Clones the skill into your agent's global skills directory:**
+   - **Google Antigravity / Gemini CLI:** `~/.gemini/config/skills/security-audit`
+   - **Claude Code:** `~/.claude/skills/security-audit`
+   - **Cursor / Windsurf:** `.agents/skills/security-audit` (workspace) or `~/.cursor/rules` (global)
+2. **Runs the automated multi-package-manager installer:**
+   ```bash
+   python scripts/setup_tools.py --install --profile all --verbose
+   ```
+3. **Verifies all runtimes, CLIs, and templates:**
+   ```bash
+   python scripts/setup_tools.py --check --verify --profile all
+   ```
+
+Once installed globally, the skill is permanently active across **all projects and workspaces** whenever you ask to audit, review, pen-test, or find security loopholes in code.
 
 ---
 

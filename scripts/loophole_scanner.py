@@ -273,6 +273,17 @@ SECURITY_TOOLS = {
     "pip-audit": ["pip-audit"],
     "npm": ["npm", "audit"],
     "govulncheck": ["govulncheck", "./..."],
+    "dependency-check": [
+        "dependency-check",
+        "--scan",
+        ".",
+        "--format",
+        "JSON",
+        "--out",
+        "odc-reports",
+        "--suppression",
+        "suppression.xml",
+    ],
     "nuclei": None,       # Active DAST — never auto-run against target without URL
     "sqlmap": None,       # Active DAST
     "ffuf": None,         # Active fuzzer
@@ -435,6 +446,15 @@ def run_safe_tools(root: Path, installed: dict[str, str | None]) -> list[dict]:
             continue
         if tool == "pip-audit" and not any((root / f).exists() for f in ("requirements.txt", "pyproject.toml", "Pipfile")):
             continue
+        if tool == "dependency-check":
+            # Strip --suppression if file does not exist to avoid error
+            suppr_file = root / "suppression.xml"
+            if not suppr_file.exists():
+                cmd = [c for c in cmd if c not in ("--suppression", "suppression.xml")]
+            # Forward NVD_API_KEY environment variable if user configured one
+            nvd_key = os.environ.get("NVD_API_KEY")
+            if nvd_key and "--nvdApiKey" not in cmd:
+                cmd = [*cmd, "--nvdApiKey", nvd_key]
 
         exec_cmd = [tool_path, *cmd[1:]]
         if os.name == "nt" and tool_path.lower().endswith((".cmd", ".bat")):

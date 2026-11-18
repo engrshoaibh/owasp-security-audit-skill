@@ -32,6 +32,16 @@ COMMON_ZAP_PATHS = [
     "/Applications/ZAP.app/Contents/Java/zap.sh",
 ]
 
+COMMON_DEPENDENCY_CHECK_PATHS = [
+    str(Path.home() / "scoop" / "apps" / "dependency-check" / "current" / "bin" / "dependency-check.bat"),
+    str(Path.home() / "scoop" / "shims" / "dependency-check.cmd"),
+    r"C:\Program Files\OWASP\Dependency-Check\bin\dependency-check.bat",
+    r"C:\Program Files (x86)\OWASP\Dependency-Check\bin\dependency-check.bat",
+    "/usr/local/bin/dependency-check",
+    "/opt/homebrew/bin/dependency-check",
+    "/usr/share/dependency-check/bin/dependency-check.sh",
+]
+
 VENV_ROOT = Path.home() / ".security-skill" / "venvs"
 
 
@@ -81,6 +91,13 @@ TOOLS: list[ToolSpec] = [
     ToolSpec(
         "trivy", "core", "Vulnerability, secret, IaC & container scanner",
         ("trivy",), scoop_pkg="trivy", winget_id="AquaSecurity.Trivy", choco_pkg="trivy", brew_pkg="trivy",
+        version_args=("--version",),
+    ),
+    ToolSpec(
+        "dependency-check", "core", "OWASP Dependency-Check (NIST NVD / CPE deep vulnerability scanner)",
+        ("dependency-check", "dependency-check.bat", "dependency-check.sh"),
+        extra_paths=tuple(COMMON_DEPENDENCY_CHECK_PATHS),
+        scoop_pkg="dependency-check", scoop_bucket="main", brew_pkg="dependency-check",
         version_args=("--version",),
     ),
 

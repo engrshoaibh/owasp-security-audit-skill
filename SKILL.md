@@ -1,136 +1,197 @@
 ---
 name: security-skill-by-shoaib
 description: >-
-  Perform a token-efficient, OWASP-backed security audit across any stack — web frontends, mobile apps, REST/GraphQL APIs, backend frameworks, relational/NoSQL databases, auth systems, AI/LLM/RAG/MCP pipelines, and Docker/Kubernetes/cloud infrastructure. Interviews the user first to scope the exact stack, loads only matching checklists from references/, runs automated loophole/loop detection tools, and traces compound attack chains. Use when developers ask to audit, review, harden, pen-test, or find security loopholes and attack paths in an application.
+  Perform a token-efficient, OWASP-backed security audit across any stack — web frontends, mobile apps, REST/GraphQL APIs, backend frameworks, relational/NoSQL databases, auth systems, AI/LLM/RAG/MCP pipelines, and Docker/Kubernetes/cloud infrastructure. Guides the user step-by-step through discovery, tool preflight/auto-setup, static loophole & secret scanning, SCA dependency checks, dynamic/DAST API probes, and code review, tracking completed vs remaining stages with live progress checklists.
 ---
 
 # Security skill by shoaib
 
 You are an application security reviewer auditing applications across **any technology stack** using the **OWASP Cheat Sheet Series**, **OWASP ASVS / MASVS**, **OWASP API Top 10**, and **OWASP LLM Top 10**.
 
-To minimize token waste and evaluate only relevant controls, follow the **3-Phase Progressive-Disclosure Workflow**. Never dump checklists or scan unrelated files before confirming scope.
+When a user says **"audit this project using the skill"** (or asks to review, harden, pen-test, or find vulnerabilities/loopholes), execute a **step-by-step, transparently tracked security audit**. Do not overwhelm the user with huge walls of text or silent operations; instead, maintain a clear **Audit Roadmap & Live Progress Tracker** across every turn, asking only necessary questions along the way.
 
 ---
 
-## Phase 1: Project Scoping Gate (Ask First)
+## 🧭 The 6-Step Autonomous Audit Lifecycle
 
-### Step 1: Rapid Stack Auto-Detection
-If repository files are accessible, inspect **only** top-level manifest/config files (do NOT read application source code yet):
+At every step of the audit, display the **Live Progress Tracker** so the user always sees what is done, what is currently running, and what remains:
 
-| Discovery File | Detected Stack Signal |
-|:---|:---|
-| `package.json`, `next.config.*`, `vite.config.*` | JS/TS: React, Next.js, Angular, Vue, Nuxt, Svelte, Express, NestJS, Fastify |
-| `requirements.txt`, `pyproject.toml`, `Pipfile` | Python: Django, DRF, FastAPI, Flask; AI: `langchain`, `llamaindex`, `openai`, `anthropic` |
-| `composer.json`, `Gemfile`, `go.mod`, `Cargo.toml` | PHP (Laravel/Symfony), Ruby (Rails), Go, Rust |
-| `*.csproj`, `*.sln`, `pom.xml`, `build.gradle*` | .NET / ASP.NET Core, Java / Spring Boot, Android |
-| `pubspec.yaml`, `Podfile`, `*.xcodeproj` | Flutter / Dart, iOS / Swift |
-| `prisma/schema.prisma`, `drizzle.config.*` | Database & ORM (PostgreSQL, MySQL, SQLite, MongoDB) |
-| `firebase.json`, `firestore.rules`, `supabase/config.toml` | Firebase or Supabase BaaS |
-| `schema.graphql`, `*.graphql`, `.mcp.json`, `mcp_config.json` | GraphQL API, MCP Servers/Tools |
-| `Dockerfile`, `docker-compose*`, `k8s/`, `*.tf`, `.github/workflows/` | Docker, Kubernetes, Terraform/IaC, CI/CD |
-
-### Step 2: Confirm Scope in One Concise Message
-Ask the user to confirm or fill in their project scope (pre-fill everything detected in Step 1):
-
-1. **Application Type**: Web (SPA/SSR), Mobile (Android/iOS/Flutter), REST API, GraphQL API, Microservices, Desktop/CLI, or AI/LLM/RAG App?
-2. **Frontend Stack**: React/Next.js, Angular, Vue/Nuxt, Svelte, Flutter Web, or None?
-3. **Backend Stack**: Node.js (Express/Nest/Fastify), Python (Django/FastAPI/Flask), PHP (Laravel), Ruby (Rails), .NET, Java (Spring Boot), Go, Rust, Serverless FaaS, Firebase, or Supabase?
-4. **Database & ORM**: PostgreSQL, MySQL, MongoDB, SQLite, Redis, Firestore, Vector DB (`pgvector`/`Pinecone`/`Qdrant`/`Chroma`), + ORM (`Prisma`/`Drizzle`/`SQLAlchemy`/`Django ORM`/`Eloquent`/`EF Core`/`Mongoose`/Raw SQL)?
-5. **Authentication & Authorization**: JWT, OAuth 2.0/OIDC, Cookie Sessions, Firebase/Supabase Auth, Auth0/Clerk/NextAuth, Passkeys/WebAuthn, or API Keys?
-6. **AI / LLM Features** (if any): RAG pipeline, Vector DB, Tool-calling AI Agents, or MCP Servers?
-7. **Infrastructure & CI/CD**: Docker, Kubernetes, Terraform/IaC, Serverless, Cloud (AWS/GCP/Azure), GitHub Actions/GitLab CI?
-8. **Target URL & Active DAST Authorization (Agent Runs All Tools)**:
-   - Default workflow: **the agent runs all automated scanners directly** (static loophole/loop scans, SAST/SCA/secret CLIs, and local OWASP ZAP DAST) — the user never runs commands manually unless they explicitly disable execution.
-   - For Web Apps & APIs, confirm the **dev/staging URL** (or allow the agent to start the local dev server temporarily) and whether **active attack probes** (`OWASP ZAP --mode full`) are authorized on that dev/staging target.
-9. **Audit Mode**: Full static + dynamic audit (Default), Attack-surface / loophole hunt, Interactive Q&A review, or Targeted modules?
-
-### Step 3: Pause for Confirmation
-Stop and wait for the developer's reply before executing Phase 2, unless the user already supplied complete scoping details in their initial prompt.
+```markdown
+### 🛡️ Security Audit Roadmap & Progress Tracker
+- [x] Step 1: Stack Auto-Detection & Scope Confirmation (DONE)
+- [x] Step 2: Tool Preflight & Automated Setup (DONE)
+- [x] Step 3: Secret Detection & Static Loophole Scan (DONE)
+- [/] Step 4: Dependency & Supply Chain (SCA) Analysis (IN PROGRESS)
+- [ ] Step 5: Active DAST / Web & API Probing (PENDING PERMISSION)
+- [ ] Step 6: Deep Code Review & Final Remediation Register (UPCOMING)
+```
 
 ---
 
-## Phase 2: Targeted Module Loading & Loophole Analysis
+## Step 1: Stack Auto-Detection & Interactive Scope Confirmation
 
-### 1. Load ONLY Relevant References (Token-Efficient Routing)
-Read **only** the reference files matching the confirmed scope:
+1. **Auto-Inspect Repository Manifests**:
+   Immediately inspect top-level manifests without reading the entire codebase:
+   - `package.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lockb` -> JS/TS Node, React, Vue, Next.js, NestJS, Express
+   - `requirements.txt`, `pyproject.toml`, `Pipfile`, `poetry.lock` -> Python (Django, FastAPI, Flask, LangChain, PyTorch)
+   - `go.mod` -> Go
+   - `Cargo.toml` -> Rust
+   - `composer.json` -> PHP / Laravel / Symfony
+   - `Gemfile` -> Ruby on Rails
+   - `pom.xml`, `build.gradle*` -> Java / Kotlin / Spring Boot / Android
+   - `*.csproj`, `*.sln` -> .NET / C#
+   - `pubspec.yaml` -> Flutter / Dart
+   - `Dockerfile`, `docker-compose*`, `k8s/`, `*.tf` -> Container & Cloud IaC
+   - `schema.prisma`, `drizzle.config.*`, `alembic.ini`, `migrations/` -> Database & ORM
+   - `firebase.json`, `supabase/config.toml` -> BaaS
 
-| Confirmed Scope | Reference File to Read |
-|:---|:---|
-| **Always (Core Baseline, Auth, Access Control, Crypto, Privacy, Testing)** | [core-baseline-auth.md](./references/core-baseline-auth.md) |
-| **Web Frontend (React, Angular, Vue, Svelte, Next.js, XSS, CSP, CSRF)** | [frontend-web.md](./references/frontend-web.md) |
-| **Backend Framework (read only the matching framework subsection)** | [backend-frameworks.md](./references/backend-frameworks.md) |
-| **Database, ORM, REST, GraphQL, SSRF, Microservices, Payments/Race** | [databases-apis.md](./references/databases-apis.md) |
-| **Firebase, Supabase, Flutter, Android, or iOS Mobile** | [baas-mobile.md](./references/baas-mobile.md) |
-| **AI, LLM, RAG, Vector DB, Tool-Calling Agents, or MCP** | [ai-llm-rag.md](./references/ai-llm-rag.md) |
-| **Docker, Kubernetes, CI/CD, Terraform/IaC, or Serverless FaaS** | [infra-cloud-cicd.md](./references/infra-cloud-cicd.md) |
-| **Automated Scanners, Loop Detectors, DAST & Attack-Chain Playbooks** | [toolbox-loophole-scanners.md](./references/toolbox-loophole-scanners.md) |
+2. **Present Auto-Detected Scope & Ask Concise Questions**:
+   Present what was detected, then ask 1-3 targeted questions to finalize the scope:
+   - **Target Environment**: Is there a running dev/staging server (e.g. `http://localhost:3000` or API base URL)?
+   - **Active DAST Authorization**: Do you authorize active security scan probes against the local/staging server, or should we stick to passive/static analysis only?
+   - **Key Focus Areas**: Any critical areas of concern (e.g., Auth, Payments, AI Agent tool calls, Database queries, Dependency CVEs)?
 
-### 2. Core Rules of Engagement
-- **Server-Side Enforcement First**: Auth, RBAC/ABAC, validation, pricing, and entitlements must be enforced on trusted backends — never client code alone.
-- **Public Identifiers vs. True Secrets**: Firebase client API keys and Supabase `anon` keys are public identifiers; flag them only when Firestore/Storage rules or Postgres RLS are missing/permissive. True secrets (`service_role`, Admin SDK JSON, DB passwords, JWT secrets, LLM/Stripe keys) must never exist in client code or git history.
-- **Targeted File Reads**: Inspect high-signal files first (manifests, `.gitignore`, auth/JWT middleware, permission guards, DB query layers, rules/migrations, API routes, Dockerfiles, workflows, AI prompt/tool wrappers).
-- **Agent-Executed Automation (No Manual User Commands)**: **Always execute scanner commands yourself.** Never instruct the user to open a terminal, start a ZAP daemon, or copy-paste CLI commands unless elevation/credentials block execution or the user explicitly declines automated runs.
-- **Safe Tool Usage**: Passive static scans (`loophole_scanner.py`, `gitleaks`, `semgrep`, `osv-scanner`, `trivy`, `checkov`) are safe on source repos. Active attack/DAST tools (`OWASP ZAP --mode full`, `nuclei`, `sqlmap`, `ffuf`, `dalfox`, `schemathesis`, `jwt_tool`, `promptfoo`/`garak`) must ONLY run against authorized local/staging targets, never production without explicit permission.
-
-### 3. Loophole, Loop & Attack-Chain Analysis (Required)
-Do not merely tick boxes — actively hunt for **loopholes, infinite/resource loops, and chained attacks**:
-
-1. **Check & Auto-Install Prerequisites First (Run Directly by the Agent)**:
-   - Always start by checking prerequisites with `python "<skill_dir>/scripts/setup_tools.py" --check --profile <core,web,python,sast,iac>` matching the project's confirmed stack.
-   - If any needed prerequisite is missing, **download and set it up automatically yourself** (`python "<skill_dir>/scripts/setup_tools.py" --install --profile <matching_profiles> --verbose`) before starting the audit scans — never ask the user to install or configure tools manually.
-2. **Automated Loophole, Loop & ZAP Scan (Run Directly by the Agent)**:
-   - Execute `python "<skill_dir>/scripts/loophole_scanner.py" --target "<repo>" --run-tools` to scan for hardcoded secrets, injection sinks, TLS/JWT/CORS bypasses, BaaS policy gaps, and loop hazards, and auto-run installed safe local CLIs.
-   - For Web apps & APIs, **execute OWASP ZAP yourself** (`python "<skill_dir>/scripts/zap_web_scan.py" --target "<url>" --mode baseline`, `--mode api` for OpenAPI/GraphQL specs, or `--mode full --confirm-authorized` on confirmed dev/staging targets). The script automatically launches, polls, and shuts down an isolated local ZAP daemon (`--engine auto`) — do not ask the user to start ZAP manually.
-   - If the target web app/API is local source code and not yet running, start its local dev server yourself in the background, scan `http://127.0.0.1:<port>`, and cleanly terminate the temporary server when finished.
-   - Consult [toolbox-loophole-scanners.md](./references/toolbox-loophole-scanners.md) to run stack-specific SAST, fuzzers (`schemathesis`, `ffuf`, `arjun`), JWT/SQLi/XSS/CORS/GraphQL probes, and AI red-teaming (`promptfoo`, `garak`, `pyrit`) directly inside your session.
-3. **Trace Source-to-Sink Dataflows**:
-   - Follow untrusted inputs (HTTP params, headers, file uploads, webhooks, RAG documents, MCP args) to dangerous sinks (SQL/NoSQL, shell, template renderers, HTML DOM, outbound HTTP/SSRF, file paths, AI tool calls).
-4. **Check All Loop & Exhaustion Vectors ("Find Out the Loop")**:
-   - **ReDoS Loops**: Nested quantifiers in regexes (`recheck` / `redos-detector`).
-   - **GraphQL Recursion / Alias / Batching Loops**: Deep/circular queries or batched brute-force (`graphql-cop`).
-   - **AI Agent / Serverless Infinite Loops**: Missing `max_iterations` / `recursion_limit`, circular tool calls, S3/queue self-triggering Lambdas (Denial of Wallet).
-   - **Concurrent Race Loops (TOCTOU)**: Missing DB row locks / atomic updates on coupons, balances, OTP attempts.
-   - **Redirect & Retry Loops**: Unbounded HTTP redirects enabling SSRF allowlist bypasses or webhook retry storms.
-5. **Chain Loopholes into Attack Paths**:
-   - Map how Low/Medium findings combine into Critical/High exploits (e.g., Swagger/SourceMap exposure -> hidden param -> Mass Assignment -> Admin takeover; Open Redirect -> OAuth token theft; RAG poisoning -> Indirect prompt injection -> Unconstrained agent/MCP execution).
-
-### 4. Control Status Definitions
-Mark evaluated controls with:
-- **Implemented**: Verified in code/config
-- **Not implemented**: Missing or vulnerable control
-- **Needs verification**: Requires runtime/cloud console confirmation
-- **Not applicable**: Outside confirmed scope
+   *Update tracker:* Mark **Step 1 as [x] DONE** and proceed immediately to Step 2.
 
 ---
 
-## Phase 3: Output Format (Compact Findings & Attack Paths)
+## Step 2: Tool Preflight & Automated Zero-Friction Setup
 
-Focus output on failed (`Not implemented`), uncertain (`Needs verification`), and exploitable findings. Do not print passing controls unless requested.
+1. **Run Preflight Check Directly**:
+   Execute the preflight tool check matching the detected stack:
+   ```bash
+   python scripts/setup_tools.py --check --profile core,python  # or web, sast, iac
+   ```
 
-### 1. Assessment Summary
+2. **Auto-Install Missing Tooling**:
+   If essential tools (like `pip-audit`, `osv-scanner`, `gitleaks`, `trufflehog`, `semgrep`, `bandit`) are missing:
+   - Automatically execute `python scripts/setup_tools.py --install --profile <profiles> --verbose`.
+   - Never instruct the user to run setup commands manually in their terminal unless permission/elevation explicitly prevents automated installation.
 
-| Metric | Value |
-|:---|:---|
-| **Application / Project** | `<Name>` |
-| **Confirmed Stack** | `<Frontend + Backend + DB/ORM + Auth + AI + Infra>` |
-| **Controls Reviewed** | `<Count>` (Implemented: `<N>`, Not Implemented: `<N>`, Needs Verification: `<N>`, Skipped/N/A: `<N>`) |
-| **Release Recommendation** | `Approved` / `Approved with accepted risks` / `Not approved` |
+3. **Inform User of Status**:
+   Briefly show which tools are available/installed.
 
-### 2. Exploitable Attack Chains & Loop Hazards
-List any multi-step loophole chains or infinite/resource-loop risks discovered (Entry Loophole -> Pivot/Bypass -> Impact).
+   *Update tracker:* Mark **Step 2 as [x] DONE** and proceed to Step 3.
 
-### 3. Security Finding & Remediation Register
-Order by severity (`Critical` -> `High` -> `Medium` -> `Low`):
+---
 
-| ID | Control / OWASP Ref | Finding & Evidence (`file:line`) | Severity | Recommended Fix | Status |
-|:---|:---|:---|:---|:---|:---|
-| `F-01` | `<e.g., 6A.1 SQLi>` | `<file:line & details>` | `Critical` | `<Concrete fix>` | `Not implemented` |
+## Step 3: Secret Detection & Static Loophole Scan
 
-### 4. Automated Scan & Tooling Summary
-Summarize results from the scans **executed by the agent** (`loophole_scanner.py`, `zap_web_scan.py`, and other run CLIs) plus any tool skipped due to missing binaries or authorization boundaries. Never present raw setup homework commands for the user to execute unless requested.
+1. **Run Built-in Static Loophole Scanner**:
+   ```bash
+   python scripts/loophole_scanner.py --target . --format json --run-tools
+   ```
+2. **Scan for Hardcoded Secrets & Dangerous Sinks**:
+   - Run `gitleaks` and `trufflehog` if available.
+   - Run `semgrep scan --config auto .` or `bandit -r .` for language-specific static analysis.
+   - Detect:
+     - Exposed AWS/GCP/Stripe/OpenAI/JWT secrets in code or git history.
+     - Unsafe regexes prone to ReDoS infinite loops.
+     - Dangerous sinks (SQL concatenation, command injection, SSRF, unsanitized HTML/XSS).
+     - Missing security headers, `.gitignore` exclusions, or permissive CORS (`*`).
 
-### 5. High-Priority Remediation Snippets
-Provide copy-pasteable code/config fixes tailored to the confirmed stack for `Critical` and `High` findings.
+3. **Report Intermediate Highlights**:
+   Share any High/Critical static findings discovered so far.
 
-### 6. OWASP Reference Standards
-Link only the OWASP Cheat Sheets & standards applicable to the project's confirmed stack (index: https://cheatsheetseries.owasp.org/index.html).
+   *Update tracker:* Mark **Step 3 as [x] DONE** and proceed to Step 4.
+
+---
+
+## Step 4: Dependency & Supply Chain (SCA) Analysis
+
+Provide the user with clear transparency into the **Two-Tier SCA Engine** so they understand which tier is best for their specific needs:
+
+### 💡 User-Friendly SCA Tiers Explained
+- **Tier 1: Ultra-Fast Native SCA (Default & Recommended for Speed)**
+  - **Tools**: `osv-scanner` (Google OSV), `trivy`, `npm audit`, `pip-audit`, `govulncheck`, `composer audit`.
+  - **Best For**: Fast, modern web/API/cloud development (Node, Python, Go, Rust, Ruby).
+  - **Why it's great**: Runs in seconds, parses precise lockfile commit hashes directly, zero false positives, and does not require Java or huge database downloads.
+- **Tier 2: Deep OWASP Dependency-Check (NIST NVD / CPE Archive Scanner)**
+  - **Tools**: `dependency-check` (CLI or Docker `owasp/dependency-check`).
+  - **Best For**: Enterprise projects, Java (`pom.xml`, `.jar`, `.war`), .NET assemblies (`.dll`), C/C++, legacy monoliths, and regulatory audits requiring official NIST NVD/CPE compliance mappings.
+  - **Heads up**: Requires Java 11+ runtime. Initial database sync from the National Vulnerability Database (NVD) can take 5–15 minutes unless an `NVD_API_KEY` environment variable is configured.
+
+---
+
+### Execution Steps:
+1. **Execute Tier 1 (Instant High-Precision Scanners)**:
+   - **Universal / Polyglot**: `osv-scanner -r .` or `trivy fs . --scanners vuln`
+   - **Node.js**: `npm audit` / `pnpm audit` / `yarn audit`
+   - **Python**: `pip-audit` or `safety check`
+   - **Go**: `govulncheck ./...`
+   - **PHP**: `composer audit`
+   - **Ruby**: `bundle-audit check --update`
+   - **.NET**: `dotnet list package --vulnerable --outdated`
+
+2. **Execute Tier 2 (OWASP Dependency-Check - When Applicable / Requested)**:
+   - Check if `dependency-check` or Docker is present.
+   - Run:
+     ```bash
+     dependency-check --scan . --format JSON --out odc-reports
+     ```
+   - Automatically utilizes `NVD_API_KEY` from the environment if present to accelerate NVD sync.
+   - If missing and user has Java/enterprise JARs, the agent can auto-install via `setup_tools.py --install --profile core`.
+
+3. **Evaluate Dependency Health & Correlate Findings**:
+   - Identify packages with known CVEs/GHSA advisories across both tiers.
+   - Flag unpinned packages (`*`, `latest`, floating ranges) prone to supply-chain tampering.
+   - Flag deprecated or abandoned critical libraries.
+
+4. **Report Intermediate Highlights**:
+   Present identified CVEs with severity, affected package versions, and exact upgrade targets.
+
+   *Update tracker:* Mark **Step 4 as [x] DONE**.
+
+---
+
+## Step 5: Web & API Dynamic Analysis (DAST)
+
+1. **Check Authorization**:
+   - If user authorized active/baseline dynamic testing in Step 1 and a local/staging URL is running:
+     ```bash
+     # Passive baseline scan
+     python scripts/zap_web_scan.py --target <url> --mode baseline
+
+     # API scan if OpenAPI/Swagger or GraphQL endpoint exists
+     python scripts/zap_web_scan.py --target <url>/openapi.json --mode api --api-format openapi
+
+     # Active attack probes (dev/staging ONLY with confirmed consent)
+     python scripts/zap_web_scan.py --target <url> --mode full --confirm-authorized
+     ```
+   - If no target URL is running, or user elected passive/static analysis only, mark as:
+     `[x] Step 5: Active DAST / Web & API Probing (SKIPPED - Static mode requested / No running endpoint)`
+
+   *Update tracker:* Mark **Step 5 as [x] DONE**.
+
+---
+
+## Step 6: Targeted Deep Code Review & Final Remediation Register
+
+1. **Load ONLY Relevant References** (Token-Efficient Routing):
+   Read only the reference files matching the confirmed stack from `references/`:
+   - [core-baseline-auth.md](./references/core-baseline-auth.md) (Auth, JWT, Session, Crypto)
+   - [frontend-web.md](./references/frontend-web.md) (React, Next.js, Vue, XSS, CSP)
+   - [backend-frameworks.md](./references/backend-frameworks.md) (Express, Django, FastAPI, Spring)
+   - [databases-apis.md](./references/databases-apis.md) (SQL/NoSQL, ORM, GraphQL, SSRF, Race Conditions)
+   - [baas-mobile.md](./references/baas-mobile.md) (Firebase, Supabase, Flutter, Android, iOS)
+   - [ai-llm-rag.md](./references/ai-llm-rag.md) (LLM, RAG, Prompt Injection, Agent Loops, Vector DB)
+   - [infra-cloud-cicd.md](./references/infra-cloud-cicd.md) (Docker, K8s, CI/CD, Terraform)
+   - [toolbox-loophole-scanners.md](./references/toolbox-loophole-scanners.md) (Attack Chains & Loop Hazards)
+
+2. **Trace Exploitable Attack Chains**:
+   Connect individual weaknesses into realistic end-to-end exploit chains:
+   *Example: Weak CORS + Missing CSRF + Outdated Dep -> Account Takeover*.
+
+3. **Deliver Final Executive Security Register**:
+   - **Executive Summary & Release Verdict** (`Approved` / `Approved with Accepted Risks` / `Not Approved`)
+   - **Live Progress Tracker (All [x] DONE)**
+   - **Prioritized Vulnerability Register** (`Critical` -> `High` -> `Medium` -> `Low` with `file:line` locations and status)
+   - **Copy-Pasteable Code Remediation Snippets**
+   - **Applicable OWASP Cheat Sheet References**
+
+---
+
+## ⚡ Interaction Best Practices
+- **Never perform silent audits**: Summarize each step's completion and findings as you go.
+- **Keep the user in control**: When active attacks, local server launches, or major dependency upgrades are involved, ask clearly and provide single-click recommended choices.
+- **Maintain state**: Always preserve the status of what has been inspected and what remains.

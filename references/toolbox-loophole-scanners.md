@@ -80,11 +80,41 @@ codeql database analyze codeql-db codeql/javascript-queries:codeql-suites/javasc
 
 ## 19.3 Dependency & Supply Chain (SCA)
 
+The skill employs a **Two-Tier SCA Engine** so developers can pick between lightning-fast scans or deep enterprise NVD compliance:
+
+### Tier 1: Ultra-Fast Native SCA (Default & Recommended for Speed)
+- **Best for**: Node.js, Python, Go, Rust, Ruby, and modern cloud stacks.
+- **Why**: Zero setup overhead, takes seconds, maps exact commit hashes with zero false positives.
 ```bash
+# Google OSV-Scanner (Multi-ecosystem lockfile scanner)
 osv-scanner -r . --format json > osv-report.json
+
+# Aqua Trivy (Vulnerabilities + secrets + misconfigurations)
 trivy fs . --scanners vuln,secret --severity HIGH,CRITICAL
-snyk test --json > snyk-report.json
+
+# Ecosystem native scanners
+npm audit --json > npm-audit.json
+pip-audit -f json -o pip-audit.json
+govulncheck ./...
+composer audit
+bundle-audit check --update
+dotnet list package --vulnerable --outdated
 ```
+
+### Tier 2: Deep OWASP Dependency-Check (NIST NVD / CPE Scanner)
+- **Best for**: Java (`pom.xml`, `.jar`), .NET (`.dll`), C/C++, legacy archives, and enterprise audits requiring official NIST NVD/CPE compliance mappings.
+- **Why**: Deep inspection of compiled binaries and archives; traces vulnerabilities even when lockfiles are missing.
+- **Setup & Execution**:
+  ```bash
+  # CLI execution (generates JSON and HTML reports)
+  dependency-check --scan . --format ALL --out odc-reports
+
+  # Accelerated run with NVD API Key (avoids NVD rate limits)
+  dependency-check --scan . --format JSON --out odc-reports --nvdApiKey "$NVD_API_KEY"
+
+  # Docker alternative (if Java CLI is not installed locally)
+  docker run --rm -v "${PWD}:/src:z" -v odc-data:/usr/share/dependency-check/data:z owasp/dependency-check:latest --scan /src --format JSON --out /src/odc-reports
+  ```
 
 ---
 

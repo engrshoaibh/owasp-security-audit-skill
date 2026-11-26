@@ -31,6 +31,19 @@ python -m unittest discover -s tests -v
 python scripts/loophole_scanner.py --target . --fail-on high   # the self-scan CI runs
 ```
 
+### Optional: fuzz the scanner
+
+Atheris is **not** part of the normal test install. It lives in `requirements-fuzz.txt` and runs in the separate
+`Fuzz scanner` workflow for about 60 seconds. Locally:
+
+```bash
+pip install -r requirements-fuzz.txt
+python tests/fuzz_loophole_scanner.py -max_total_time=60
+```
+
+The target writes each input to a temp file with a random scanned extension and asserts `scan_repo` returns without
+raising. Inputs that take longer than one second fail (possible ReDoS in a rule pattern).
+
 ## Adding a scanner rule
 
 1. Add a `Rule(...)` to `RULES` in `scripts/loophole_scanner.py`. Give it:

@@ -1,5 +1,7 @@
 # Backend Framework Security Reference (Module 5)
 
+> OWASP Top 10:2025: A01, A02, A05, A07, A08 · API Top 10:2023: API3, API8 · Category lookup: [owasp-mapping.md](./owasp-mapping.md)
+
 > OWASP Cheat Sheets:
 > - [Node.js Security](https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html)
 > - [Django Security](https://cheatsheetseries.owasp.org/cheatsheets/Django_Security_Cheat_Sheet.html)

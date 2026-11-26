@@ -39,11 +39,16 @@ gitleaks git --source . --verbose --report-format json --report-path gitleaks-gi
 gitleaks protect --staged --verbose --redact   # Pre-commit hook
 ```
 
-### TruffleHog (Live Verification of Exploitable Keys)
+### TruffleHog (Offline by default, Live Verification with consent)
 ```bash
+# Offline: no data leaves the machine (default in loophole_scanner.py --run-tools)
+trufflehog filesystem . --no-verification --json > trufflehog.json
+trufflehog git file://. --no-verification --json > trufflehog-git.json
+
+# Live verification sends each candidate secret to its provider's API. Ask the user first.
 trufflehog filesystem . --only-verified --json > trufflehog-verified.json
-trufflehog git file://. --only-verified --json > trufflehog-git-verified.json
 ```
+*Note*: TruffleHog JSON includes the raw secret (`Raw` field). Do not paste it into chat or reports; mask it.
 *Loopholes found*: Hardcoded API keys, DB URIs with passwords, `.env` secrets in git history, private keys, JWT signing secrets, cloud credentials still active against live APIs.
 
 ---
@@ -52,9 +57,10 @@ trufflehog git file://. --only-verified --json > trufflehog-git-verified.json
 
 ### Semgrep (Multi-Language OWASP Rules)
 ```bash
-semgrep scan --config auto .
-semgrep scan --config p/owasp-top-ten --config p/security-audit --config p/secrets .
-semgrep scan --config p/owasp-top-ten --sarif -o semgrep.sarif .
+# Registry rule packs with telemetry off (rules are downloaded; your code is not uploaded)
+semgrep scan --config p/owasp-top-ten --config p/security-audit --config p/secrets --metrics=off .
+semgrep scan --config p/owasp-top-ten --metrics=off --sarif -o semgrep.sarif .
+# "--config auto" also works but requires metrics to be on (sends project metadata to Semgrep)
 ```
 
 ### Dataflow Taint & Deep SAST
@@ -110,7 +116,9 @@ dotnet list package --vulnerable --outdated
   dependency-check --scan . --format ALL --out odc-reports
 
   # Accelerated run with NVD API Key (avoids NVD rate limits)
-  dependency-check --scan . --format JSON --out odc-reports --nvdApiKey "$NVD_API_KEY"
+  # Put the key in a private properties file so it does not appear in process listings or shell history
+  umask 077; printf 'nvd.api.key=%s\n' "$NVD_API_KEY" > /tmp/odc.properties
+  dependency-check --scan . --format JSON --out odc-reports --propertyfile /tmp/odc.properties; rm -f /tmp/odc.properties
 
   # Docker alternative (if Java CLI is not installed locally)
   docker run --rm -v "${PWD}:/src:z" -v odc-data:/usr/share/dependency-check/data:z owasp/dependency-check:latest --scan /src --format JSON --out /src/odc-reports

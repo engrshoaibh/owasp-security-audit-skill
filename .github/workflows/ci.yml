@@ -41,10 +41,23 @@ jobs:
         run: |
           python scripts/setup_tools.py --check
 
+      - name: Unit tests for scanner rules
+        run: |
+          git config --global user.email "ci@example.com"
+          git config --global user.name "CI"
+          python -m unittest discover -s tests -v
+
       - name: Test Loophole Scanner CLI
         run: |
           python scripts/loophole_scanner.py --help
+          python scripts/loophole_scanner.py --list-rules
           python scripts/loophole_scanner.py --target . --format json
+          python scripts/loophole_scanner.py --target . --format sarif --output results.sarif
+          python -c "import json; json.load(open('results.sarif'))"
+
+      - name: Self-scan gate (no High or Critical in production code)
+        run: |
+          python scripts/loophole_scanner.py --target . --fail-on high
 
       - name: Test ZAP Web Scan CLI
         run: |

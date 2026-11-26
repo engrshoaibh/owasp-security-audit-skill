@@ -1,5 +1,7 @@
 # Database, API, SSRF, Microservices & Business Logic Security Reference
 
+> OWASP Top 10:2025: A01 (incl. SSRF), A05, A06 · API Top 10:2023: API1–API10 · Category lookup: [owasp-mapping.md](./owasp-mapping.md)
+
 > OWASP Cheat Sheets:
 > - [Database Security](https://cheatsheetseries.owasp.org/cheatsheets/Database_Security_Cheat_Sheet.html)
 > - [SQL Injection Prevention](https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html)

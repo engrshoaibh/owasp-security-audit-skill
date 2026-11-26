@@ -4,6 +4,7 @@
 |:---|:---|
 | [prompts.md](./prompts.md) | Copy-paste prompts for quick checks, full audits, focused reviews, DAST and CI |
 | [sample-report.md](./sample-report.md) | A full audit report in the skill's report format |
+| [juice-shop-report.md](./juice-shop-report.md) | Sample audit of OWASP Juice Shop `v20.4.0` (`routes/` and `lib/`) |
 | [sample-scan.json](./sample-scan.json) | Raw `loophole_scanner.py --format json` output for the demo app |
 | [demo/](./demo/) | 60-second demo script and recording plan against OWASP Juice Shop |
 | [vulnerable-flask-app/](./vulnerable-flask-app/) | A small, intentionally vulnerable Flask app to try the skill on. **Never deploy it.** |

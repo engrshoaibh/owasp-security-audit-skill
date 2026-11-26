@@ -46,9 +46,33 @@ python "$SKILL_DIR/scripts/loophole_scanner.py" --target . --format json
 
 ## Choosing a depth
 
-- **Quick check** (user asks "is this safe?", "quick scan", or a single file/PR): run Step 3 only, review the hits,
-  and answer in the report format with a verdict. Skip the questions in Step 1.
-- **Full audit** (default for "audit this project"): run all six steps below.
+| Mode | Use when the user says | What runs |
+|:---|:---|:---|
+| **Quick check** | "quick scan", "is this safe?", "check this PR / file / folder", "before I push" | The quick check below. No questions, no installs, no network, no DAST. |
+| **Full audit** | "audit this project", "security review", "pen-test", "harden" (default when unclear) | All six steps below. |
+
+If the user asks for a quick check but the scope is a whole large project, do the quick check and offer the full audit
+once at the end.
+
+### Quick check (about 2 minutes, static only)
+
+1. **Pick the scope** without asking:
+   - a PR or "my changes" → `--changed origin/main` (or the PR's base branch; `--changed` alone = uncommitted work)
+   - named files or folders → `--paths <path> [<path> ...]`
+   - otherwise → the whole repo
+2. **Run the built-in scanner** (stdlib only, nothing to install):
+   ```bash
+   python "$SKILL_DIR/scripts/loophole_scanner.py" --target . --quick --format json [--changed origin/main | --paths src/auth]
+   ```
+   `--quick` hides low-confidence hits and never runs external tools. Also run `gitleaks` / `semgrep` only if they are
+   already installed, with the offline flags from Step 3.
+3. **Read the code around every hit** and drop false positives (rule 7).
+4. **Skim the in-scope code yourself** for what scanners miss, in this order: missing authorization on routes or
+   resolvers that take an object id ([access-control-review.md](./references/access-control-review.md), Steps 2–3
+   only), auth/session changes, new outbound HTTP calls (SSRF), new file paths built from input, and new LLM tool
+   definitions.
+5. **Answer in the short form** from [report-format.md](./references/report-format.md#3-quick-check-reply): verdict,
+   confirmed findings with `file:line` and fix, and one line on what was not covered (dependencies, DAST).
 
 ## Progress tracker
 
@@ -155,9 +179,12 @@ Otherwise mark the step `SKIPPED (static-only)` and move on.
    - [ai-llm-rag.md](./references/ai-llm-rag.md): LLM, RAG, agents, MCP
    - [infra-cloud-cicd.md](./references/infra-cloud-cicd.md): Docker, Kubernetes, CI/CD, Terraform, serverless
    - [toolbox-loophole-scanners.md](./references/toolbox-loophole-scanners.md): extra tools and attack-chain playbooks
+   - [access-control-review.md](./references/access-control-review.md): always (IDOR/BOLA/BFLA procedure)
    - [owasp-mapping.md](./references/owasp-mapping.md): category lookup for tagging findings
-2. **Review access control by hand.** Scanners rarely catch broken object-level authorization (IDOR/BOLA). For each
-   route or resolver that takes an object id, confirm the server checks the caller owns or may access that object.
+2. **Review access control by hand** with [access-control-review.md](./references/access-control-review.md).
+   Scanners almost never catch IDOR/BOLA because the bug is a missing check. Build the endpoint inventory, trace each
+   object id to its query, check field-level and function-level access, and include the inventory rows with problems
+   in the report.
 3. **Rate every finding** with the [severity rubric](./references/severity-rubric.md) and give a confidence level.
 4. **Chain weaknesses** into realistic attack paths (for example: permissive CORS + missing CSRF → account takeover).
 5. **Deliver the register** in the format from [report-format.md](./references/report-format.md):

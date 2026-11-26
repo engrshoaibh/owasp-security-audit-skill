@@ -129,11 +129,13 @@ Ask in plain language. The skill triggers on requests like these:
 | You say | What happens |
 |:---|:---|
 | "Audit this project for security issues" | Full 6-step audit with a progress tracker and a findings register |
-| "Quick security check of `src/auth/`" | Static scan of that path plus review of the hits, with a verdict |
-| "Is this PR safe to merge?" | Quick check of the changed files |
+| "Quick security check of `src/auth/`" | Quick mode: static scan of that path, hits verified, short verdict. No questions, installs or network |
+| "Is this PR safe to merge?" | Quick mode on the files changed vs the base branch |
 | "Check our LLM agent for prompt injection and excessive agency" | Focus on the AI/LLM module (LLM Top 10:2025) |
 | "Scan the staging API at http://localhost:8000 with ZAP" | DAST step, after confirming authorization |
 | "Export the findings as SARIF" | `--format sarif` for GitHub code scanning |
+
+More prompts, a sample report and a vulnerable demo app to try it on are in [`examples/`](examples/).
 
 Every audit ends with a register in a fixed format ([report-format.md](references/report-format.md)): verdict,
 counts, then each finding with severity, confidence, OWASP and CWE ids, `file:line`, evidence and a concrete fix.
@@ -259,6 +261,10 @@ python scripts/loophole_scanner.py --target . --fail-on high
 # Accept current findings, then only report new ones
 python scripts/loophole_scanner.py --target . --write-baseline .security-skill-baseline.json
 
+# Quick check: only files changed vs main (or uncommitted work with bare --changed), or chosen folders
+python scripts/loophole_scanner.py --target . --quick --changed origin/main
+python scripts/loophole_scanner.py --target . --quick --paths src/auth src/api
+
 # Also run installed scanners (gitleaks, trufflehog offline, semgrep with metrics off, osv-scanner, ...)
 python scripts/loophole_scanner.py --target . --run-tools
 
@@ -340,6 +346,7 @@ The skill splits deep domain knowledge into token-optimized reference modules:
 - **[`baas-mobile.md`](references/baas-mobile.md):** Firebase Security Rules, Supabase Row-Level Security (RLS), and mobile MASVS compliance.
 - **[`ai-llm-rag.md`](references/ai-llm-rag.md):** Defense against direct/indirect prompt injection, vector embedding poisoning, tool-calling agent boundaries, and unconstrained loop caps.
 - **[`infra-cloud-cicd.md`](references/infra-cloud-cicd.md):** Multi-stage non-root Dockerfiles, Kubernetes Pod Security Standards, Terraform least privilege, and hardened CI/CD pipelines.
+- **[`access-control-review.md`](references/access-control-review.md):** Step-by-step IDOR / BOLA / BFLA review: endpoint inventory, owner-check tracing, field- and function-level access, two-account verification.
 - **[`owasp-mapping.md`](references/owasp-mapping.md):** OWASP Top 10:2025, API Top 10:2023 and LLM Top 10:2025 categories mapped to modules and scanner rules.
 - **[`severity-rubric.md`](references/severity-rubric.md):** Impact × exploitability severity matrix, confidence levels and release verdict rules.
 - **[`report-format.md`](references/report-format.md):** JSON finding schema, SARIF/baseline options and the human report template.

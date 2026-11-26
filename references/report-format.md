@@ -94,3 +94,21 @@ Rules for the register:
 - Every Critical/High has evidence (the input path), not only the matched line.
 - Fixes are concrete code or config for this project, not generic advice.
 - Mask secrets (first 4 and last 2 characters at most) and say whether the secret must be rotated.
+
+## 3. Quick check reply
+
+For a quick check, reply in chat with this shorter form instead of the full register:
+
+```markdown
+**Quick security check: `src/auth/` (12 files changed vs origin/main)**
+**Verdict:** Not approved: 1 High to fix before merging.
+
+1. **[HIGH] IDOR on invoice download**: `src/routes/invoices.ts:41`
+   `Invoice.findById(req.params.id)` has no owner filter, so any logged-in user can download any invoice
+   (A01:2025 · API1:2023 · CWE-639).
+   Fix: `Invoice.findOne({ _id: req.params.id, userId: req.user.id })`
+2. **[MEDIUM] Session cookie not Secure**: `src/session.ts:9` (COOKIE-01). Fix: `secure: process.env.NODE_ENV === "production"`.
+
+Dismissed as false positives: `INJ-03` in `scripts/build.js:12` (constant string).
+Not covered: dependency CVEs, dynamic testing. Ask for a full audit to include them.
+```

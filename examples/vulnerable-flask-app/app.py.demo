@@ -1,0 +1,69 @@
+"""Intentionally vulnerable demo app for trying the skill. DO NOT DEPLOY.
+
+Each weakness is marked with the finding id it produces in ../sample-report.md.
+"""
+
+import hashlib
+import os
+import random
+import sqlite3
+
+from flask import Flask, abort, g, redirect, render_template_string, request, session
+
+app = Flask(__name__)
+SECRET_KEY = os.environ.get("SECRET_KEY") or "dev-secret"  # F-4: hardcoded fallback secret
+app.secret_key = SECRET_KEY
+
+
+def db():
+    if "db" not in g:
+        g.db = sqlite3.connect("demo.db")
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+
+def current_user_id():
+    uid = session.get("user_id")
+    if uid is None:
+        abort(401)
+    return uid
+
+
+@app.post("/login")
+def login():
+    email = request.form["email"]
+    password_hash = hashlib.md5(request.form["password"].encode()).hexdigest()  # F-5: MD5 password hashing
+    row = db().execute(
+        f"SELECT id FROM users WHERE email = '{email}' AND password_hash = '{password_hash}'"  # F-1: SQL injection
+    ).fetchone()
+    if not row:
+        abort(403)
+    session["user_id"] = row["id"]
+    return redirect(request.args.get("next", "/"))  # F-6: open redirect
+
+
+@app.get("/invoices/<int:invoice_id>")
+def get_invoice(invoice_id):
+    current_user_id()  # logged in...
+    row = db().execute("SELECT * FROM invoices WHERE id = ?", (invoice_id,)).fetchone()
+    if not row:
+        abort(404)
+    return dict(row)  # F-2: IDOR, no check that the invoice belongs to the caller
+
+
+@app.get("/greet")
+def greet():
+    name = request.args.get("name", "friend")
+    return render_template_string("<h1>Hello " + name + "</h1>")  # F-3: server-side template injection
+
+
+@app.post("/password-reset")
+def password_reset():
+    reset_token = str(random.randint(100000, 999999))  # F-7: predictable reset token
+    db().execute("UPDATE users SET reset_token = ? WHERE email = ?", (reset_token, request.form["email"]))
+    db().commit()
+    return {"status": "sent"}
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", debug=True)  # F-8: debug mode (Werkzeug console = RCE)

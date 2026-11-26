@@ -195,7 +195,9 @@ RULES: list[Rule] = [
         ("A05:2025",), "1.2.2 / 6A.1 SQLi",
         re.compile(r"(?:\.(?:query|execute|executemany|raw|whereRaw|orderByRaw|FromSqlRaw|ExecuteSqlRaw)\s*\(\s*(?:f['\"]|`[^`]*\$\{|['\"][^'\"]*['\"]\s*(?:\+|%\s*[(\w])|['\"][^'\"]*['\"]\s*\.format\s*\()|\$queryRawUnsafe|\$executeRawUnsafe"
                    # SQL text built inline with interpolation (also catches queries split across lines)
-                   r"|\bf\"\s*(?i:SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b[^\"]*\{|\bf'\s*(?i:SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b[^']*\{|`\s*(?i:SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b[^`]*\$\{)"),
+                   r"|\bf\"\s*(?i:SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b[^\"]*\{|\bf'\s*(?i:SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b[^']*\{|`\s*(?i:SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b[^`]*\$\{"
+                   # Go database/sql: fmt.Sprintf or string concat passed to Query/QueryRow/Exec (+ Context)
+                   r"|(?:db|tx|conn)\.(?:Query|QueryRow|Exec)(?:Context)?\s*\(\s*(?:fmt\.Sprintf\s*\(|(?:"[^"]*"|`[^`]*`)\s*\+))"),
         "Use parameterized queries / prepared statements ($1, ?, :param) or tagged-template Prisma.$queryRaw.",
     ),
     Rule(

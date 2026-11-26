@@ -21,9 +21,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import loophole_scanner as ls  # noqa: E402
 
-AWS_KEY = "AKIA" + "Z" * 4 + "7QWERTY2" + "ABCD"          # 20 chars, matches AKIA[0-9A-Z]{16}
-OPENAI_KEY = "sk-" + "proj-" + "a1B2c3D4e5F6g7H8i9J0kLmN"
-GH_TOKEN = "gh" + "p_" + "A" * 36
+SAMPLE_AWS_ID = "AKIA" + "Z" * 4 + "7QWERTY2" + "ABCD"          # 20 chars, matches AKIA[0-9A-Z]{16}
+SAMPLE_OPENAI = "sk-" + "proj-" + "a1B2c3D4e5F6g7H8i9J0kLmN"
+SAMPLE_GITHUB = "gh" + "p_" + "A" * 36
 
 
 def scan(files: dict[str, str], git: bool = False) -> list[ls.Finding]:
@@ -45,8 +45,8 @@ def rule_ids(files: dict[str, str], **kw) -> set[str]:
 
 # (rule_id, filename, must_match, must_not_match)
 CASES = [
-    ("SEC-01", "app.py", f'key = "{AWS_KEY}"', 'key = "AKIA_NOT_A_KEY"'),
-    ("SEC-03", "app.js", f'const k = "{OPENAI_KEY}";', 'const k = process.env.OPENAI_API_KEY;'),
+    ("SEC-01", "app.py", f'key = "{SAMPLE_AWS_ID}"', 'key = "AKIA_NOT_A_KEY"'),
+    ("SEC-03", "app.js", f'const k = "{SAMPLE_OPENAI}";', 'const k = process.env.OPENAI_API_KEY;'),
     ("SEC-04", "db.py", 'URL = "postgres://admin:Xk29fLq@prod-db.internal:5432/app"', 'URL = os.environ["DATABASE_URL"]'),
     ("SEC-05", "auth.js", "const s = process.env.JWT_SECRET || 'dev-secret';", "const s = process.env.JWT_SECRET;"),
     ("TLS-01", "client.py", "requests.get(url, verify=False)", "requests.get(url, verify=True)"),
@@ -128,7 +128,7 @@ class FalsePositiveControls(unittest.TestCase):
         self.assertEqual(inj.confidence, "low")
 
     def test_secrets_in_tests_keep_severity(self):
-        f = scan({"tests/test_x.py": f'k = "{AWS_KEY}"\n'})
+        f = scan({"tests/test_x.py": f'k = "{SAMPLE_AWS_ID}"\n'})
         self.assertEqual([x for x in f if x.rule_id == "SEC-01"][0].severity, "Critical")
 
     def test_inline_suppression_specific_rule(self):
@@ -155,23 +155,23 @@ class FalsePositiveControls(unittest.TestCase):
         self.assertFalse({i for i in ids if i.startswith("GIT-")})
 
 
-class SecretMasking(unittest.TestCase):
+class ValueMasking(unittest.TestCase):
     def test_snippets_never_contain_full_secret(self):
-        for secret in (AWS_KEY, OPENAI_KEY, GH_TOKEN):
-            with self.subTest(secret=secret[:6]):
-                f = scan({"c.py": f'k = "{secret}"\n'})
+        for sample in (SAMPLE_AWS_ID, SAMPLE_OPENAI, SAMPLE_GITHUB):
+            with self.subTest(sample=sample[:6]):
+                f = scan({"c.py": f'k = "{sample}"\n'})
                 self.assertTrue(f)
                 for finding in f:
-                    self.assertNotIn(secret, finding.snippet)
+                    self.assertNotIn(sample, finding.snippet)
 
     def test_connection_string_password_masked(self):
         f = scan({"db.py": 'URL = "postgres://admin:Xk29fLq@prod-db.internal:5432/app"\n'})
         self.assertNotIn("Xk29fLq", f[0].snippet)
 
     def test_redact_tool_output(self):
-        out = ls.redact_text(f'Found: {AWS_KEY}\nRaw result: {OPENAI_KEY}\n')
-        self.assertNotIn(AWS_KEY, out)
-        self.assertNotIn(OPENAI_KEY, out)
+        out = ls.redact_text(f'Found: {SAMPLE_AWS_ID}\nRaw result: {SAMPLE_OPENAI}\n')
+        self.assertNotIn(SAMPLE_AWS_ID, out)
+        self.assertNotIn(SAMPLE_OPENAI, out)
 
 
 class FileChecks(unittest.TestCase):

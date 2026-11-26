@@ -112,7 +112,7 @@ class Rule:
     remediation: str
     extensions: tuple[str, ...] | None = None
     path_globs: tuple[str, ...] | None = None  # restrict to paths matching any glob
-    secret: bool = False  # mask the matched value in snippets
+    masked: bool = False  # mask the matched value in snippets
 
 
 RULES: list[Rule] = [
@@ -122,7 +122,7 @@ RULES: list[Rule] = [
         ("A07:2025", "A04:2025"), "1.5 Secrets Management",
         re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
         "Revoke the key now, purge it from git history, and load credentials via IAM roles or a secrets manager.",
-        secret=True,
+        masked=True,
     ),
     Rule(
         "SEC-02", "Private key material committed in file", "Critical", "high", "CWE-321",
@@ -140,14 +140,14 @@ RULES: list[Rule] = [
         ),
         "Move API keys to server-side env / secrets manager and rotate exposed keys. (AIza Firebase client keys "
         "are public by design but need GCP API restrictions and strict Security Rules.)",
-        secret=True,
+        masked=True,
     ),
     Rule(
         "SEC-04", "Hardcoded DB connection string with embedded credentials", "High", "medium", "CWE-798",
         ("A07:2025",), "1.5 / 6 Database",
         re.compile(r"(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|rediss|amqp)://[^:\s'\"`/]+:[^@\s'\"`${}]+@[^\s'\"`]+"),
         "Move database credentials out of source files into a secret manager / runtime environment variables.",
-        secret=True,
+        masked=True,
     ),
     Rule(
         "SEC-05", "Hardcoded fallback JWT / session secret", "High", "high", "CWE-1188",
@@ -375,7 +375,7 @@ SENSITIVE_FILE_ALLOW = (".env.example", ".env.sample", ".env.template", ".env.di
 # Helpers
 # ---------------------------------------------------------------------------
 
-def mask_secret(value: str) -> str:
+def redact_value(value: str) -> str:
     """Keep a short prefix (to identify the key type) and the last 2 characters."""
     if len(value) <= 8:
         return "*" * len(value)
@@ -387,18 +387,18 @@ def mask_connection_string(value: str) -> str:
     return re.sub(r"(://[^:\s/]+:)([^@\s]+)(@)", lambda m: f"{m.group(1)}****{m.group(3)}", value)
 
 
-SECRET_RULES = [r for r in RULES if r.secret]
-RAW_SECRET_FIELD = re.compile(r"((?:\"Raw(?:V2)?\"|Raw result|RawV2|Secret|Match)\s*[:=]\s*\"?)([^\s\",]{6,})", re.IGNORECASE)
+MASKED_RULES = [r for r in RULES if r.masked]
+RAW_VALUE_FIELD = re.compile(r"((?:\"Raw(?:V2)?\"|Raw result|RawV2|Secret|Match)\s*[:=]\s*\"?)([^\s\",]{6,})", re.IGNORECASE)
 
 
 def redact_text(text: str) -> str:
     """Mask known secret shapes anywhere in free text (used for external tool output)."""
-    for rule in SECRET_RULES:
+    for rule in MASKED_RULES:
         if rule.rule_id == "SEC-04":
             text = rule.pattern.sub(lambda m: mask_connection_string(m.group(0)), text)
         else:
-            text = rule.pattern.sub(lambda m: mask_secret(m.group(0)), text)
-    return RAW_SECRET_FIELD.sub(lambda m: m.group(1) + mask_secret(m.group(2)), text)
+            text = rule.pattern.sub(lambda m: redact_value(m.group(0)), text)
+    return RAW_VALUE_FIELD.sub(lambda m: m.group(1) + redact_value(m.group(2)), text)
 
 
 def is_non_production(rel_path: str) -> bool:
@@ -691,7 +691,7 @@ def scan_repo(root: Path) -> tuple[list[Finding], int]:
                     continue
 
                 snippet = line.strip()
-                if rule.secret:
+                if rule.masked:
                     snippet = redact_text(snippet)
                 snippet = snippet[:140]
                 findings.append(make_finding(rule.rule_id, adjusted[0], adjusted[1], rel, idx, snippet, rule.remediation))

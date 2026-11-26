@@ -212,6 +212,17 @@ class FileChecks(unittest.TestCase):
         self.assertNotIn("DOCKER-02", ids)
 
 
+class Symlinks(unittest.TestCase):
+    @unittest.skipIf(sys.platform.startswith("win"), "symlinks need privileges on Windows")
+    def test_symlink_outside_target_is_not_read(self):
+        with tempfile.TemporaryDirectory() as outside, tempfile.TemporaryDirectory() as tmp:
+            secret_file = Path(outside) / "creds.py"
+            secret_file.write_text(f'k = "{SAMPLE_AWS_ID}"\n')
+            (Path(tmp) / "link.py").symlink_to(secret_file)
+            findings, _ = ls.scan_repo(Path(tmp))
+            self.assertFalse(findings)
+
+
 class Outputs(unittest.TestCase):
     def _run(self, *args: str, files: dict[str, str]) -> subprocess.CompletedProcess:
         with tempfile.TemporaryDirectory() as tmp:

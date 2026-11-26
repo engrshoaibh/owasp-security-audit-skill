@@ -107,6 +107,28 @@ class RuleCases(unittest.TestCase):
         self.assertIn("INJ-01", rule_ids({"a.js": "const q = `SELECT * FROM t WHERE id = ${id}`;\n"}))
         self.assertNotIn("INJ-01", rule_ids({"a.py": 'msg = f"Selected {n} items"\n'}))
 
+    def test_go_sql_sprintf_and_concat(self):
+        self.assertIn(
+            "INJ-01",
+            rule_ids({"repo.go": 'rows, err := db.Query(fmt.Sprintf("SELECT * FROM users WHERE id = %s", id))\n'}),
+        )
+        self.assertIn(
+            "INJ-01",
+            rule_ids({"repo.go": 'rows, err := db.Query("SELECT * FROM users WHERE name = \'" + name + "\'")\n'}),
+        )
+        self.assertNotIn(
+            "INJ-01",
+            rule_ids({"repo.go": 'rows, err := db.Query("SELECT * FROM users WHERE id = $1", id)\n'}),
+        )
+        self.assertNotIn(
+            "INJ-01",
+            rule_ids({"repo.go": 'rows, err := db.QueryContext(ctx, "SELECT * FROM users WHERE id = ?", id)\n'}),
+        )
+        self.assertNotIn(
+            "INJ-01",
+            rule_ids({"repo.go": '_, err := db.Exec("UPDATE users SET active = $1 WHERE id = $2", true, id)\n'}),
+        )
+
     def test_ssti_concatenation(self):
         self.assertIn("SSTI-01", rule_ids({"v.py": 'return render_template_string("<h1>" + name + "</h1>")\n'}))
         self.assertNotIn("SSTI-01", rule_ids({"v.py": 'return render_template_string("<h1>{{ name }}</h1>", name=name)\n'}))

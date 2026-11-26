@@ -77,6 +77,6 @@ Evaluate ONLY the section(s) matching the project's confirmed backend stack.
 - [ ] **5G.6** Unsafe deserialization is blocked (`ObjectInputStream` look-ahead filters, Jackson `activateDefaultTyping` avoided).
 
 ## 5H. Go & Rust [SKIP IF NOT USING]
-- [ ] **5H.1** **Go**: `database/sql` uses `$1`/`?` placeholders (never `fmt.Sprintf` in SQL); `html/template` (not `text/template`) renders HTML; `crypto/rand` (not `math/rand`) generates tokens; `http.Client` sets explicit `Timeout` and disables/validates redirects; `TLSConfig.InsecureSkipVerify` is `false`.
+- [ ] **5H.1** **Go**: `database/sql` uses `$1`/`?` placeholders (never `fmt.Sprintf` in SQL; scanner `INJ-01`); `html/template` (not `text/template`) renders HTML; `crypto/rand` (not `math/rand`) generates tokens; `http.Client` sets explicit `Timeout` and disables/validates redirects; `TLSConfig.InsecureSkipVerify` is `false`.
 - [ ] **5H.2** **Go**: Goroutine/worker pools and request readers (`http.MaxBytesReader`) bound memory and concurrency to prevent DoS loops.
 - [ ] **5H.3** **Rust**: Minimize `unsafe` blocks and document safety invariants; use parameterized SQL (`sqlx::query!` / `diesel`); set body size limits (`DefaultBodyLimit` in Axum) and `tower_http` timeouts/CORS; run `cargo audit` and `cargo clippy`.

@@ -1,6 +1,6 @@
 {
   "name": "owasp-security-audit",
-  "version": "2.0.0",
+  "version": "0.1.0",
   "description": "Security audit of a codebase mapped to OWASP Top 10:2025, API Top 10 and LLM Top 10, with secret, SAST, SCA and DAST tooling.",
   "author": { "name": "engrshoaibh" },
   "homepage": "https://github.com/engrshoaibh/owasp-security-audit-skill",

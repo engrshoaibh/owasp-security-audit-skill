@@ -2,6 +2,11 @@
 
 All notable changes to this project are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Documentation
+- CONTRIBUTING: step-by-step workflow from claiming an issue to a merged pull request, commit message format and a pre-push checklist.
+
 ## [0.1.0] - 2026-11-26
 
 First tagged release. An OWASP-based security audit skill for AI coding agents (Claude Code, Codex, Gemini CLI,

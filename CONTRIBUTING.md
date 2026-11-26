@@ -60,13 +60,92 @@ Install instructions live in the README under **Install (one command per agent)*
 path the agent reads skills from and, if the agent does not load skills by itself, the rule or instruction file
 that points it at `SKILL.md`. Please test it in that agent before opening the PR and say which version you used.
 
-## Pull requests
+## From issue to merged pull request
 
-- Keep each PR to one change. Small PRs get reviewed fast.
-- CI must pass: syntax check, unit tests, scanner CLI smoke tests, the self-scan gate and the demo-app check.
-- Pin any new GitHub Action to a full commit SHA with the version in a comment (OpenSSF Scorecard checks this).
-- Do not add runtime dependencies to `scripts/loophole_scanner.py`. Optional tools go through `setup_tools.py`.
-- Write commit messages in the imperative ("Add Terraform public S3 bucket rule").
+### 1. Claim the issue
+
+- Comment "I'd like to work on this" on the issue. A maintainer assigns it to you, usually within a day.
+- Don't start on an issue that is already assigned. If the assignee has been silent for 7 days, ask in the
+  issue whether you can take it over.
+- No issue for your idea yet? Open one first and describe the change, so we agree on it before you write code.
+  Typo and docs fixes can skip this step.
+- Questions go in the issue thread, not in private messages, so the next contributor can read the answer.
+
+### 2. Fork and branch
+
+```bash
+git clone https://github.com/<you>/owasp-security-audit-skill.git
+cd owasp-security-audit-skill
+git remote add upstream https://github.com/engrshoaibh/owasp-security-audit-skill.git
+git switch -c <type>/<issue-number>-<short-name>    # e.g. rule/10-terraform-public-s3
+```
+
+Branch types: `rule/` (scanner rule), `checklist/` (references), `docs/`, `fix/`, `ci/`, `test/`.
+
+Before you open the pull request, bring your branch up to date:
+
+```bash
+git fetch upstream
+git rebase upstream/main
+```
+
+### 3. Commit messages
+
+```text
+Add Terraform rule for public S3 ACLs and open security groups      <- subject
+
+Flags aws_s3_bucket_acl with public-read/public-read-write and        <- body: what and why
+security group ingress from 0.0.0.0/0 on ports other than 80/443.
+Maps to CWE-284, A01:2025.
+
+Fixes #10                                                            <- links and closes the issue
+```
+
+- **Subject:** imperative mood ("Add", "Fix", "Document", not "Added" or "Fixes"), 72 characters or fewer,
+  no trailing period.
+- **Body:** wrap at 72 characters and explain *why*, not line by line *what*. Include the rule ID, CWE and
+  OWASP mapping for scanner rules.
+- **Footer:** `Fixes #<issue>` in the last commit (or the PR description) so the issue closes when the PR merges.
+  Use `Refs #<issue>` for partial work.
+- One logical change per commit. Don't worry about small "fix typo" commits: we squash-merge, and the PR
+  title and description become the final commit message.
+- Never include secrets, tokens, internal hostnames or customer code in a commit, its message or its history.
+  If one slips in, tell a maintainer privately (see SECURITY.md); a force-push does not remove it from forks.
+- AI-assisted commits are welcome. Review every line yourself and keep any co-author trailer your tool adds.
+
+### 4. Before you push: checklist
+
+- [ ] `python -m unittest discover -s tests -v` passes
+- [ ] `python scripts/loophole_scanner.py --target . --fail-on high` passes (the CI self-scan gate)
+- [ ] New scanner rules have a must-flag **and** a must-not-flag case in `tests/test_loophole_scanner.py`
+- [ ] Docs updated: README for new agents or features, `references/*.md` for new checks, `CHANGELOG.md`
+      under `## [Unreleased]` for anything a user would notice
+- [ ] No new runtime dependencies in `scripts/loophole_scanner.py`
+- [ ] New GitHub Actions are pinned to a full commit SHA, with the version in a comment (OpenSSF Scorecard checks this)
+
+CI runs the same checks plus scanner CLI smoke tests and the demo-app check, and must be green before merge.
+
+### 5. Open the pull request
+
+- Title = your commit subject. Description: what changed, why, how you tested it, and `Fixes #<issue>`.
+- For a new rule, paste one real (sanitised) example it catches, and say how noisy it was on a project you tried.
+- Open it as a **draft** if you want early feedback; mark it ready when the checklist above is done.
+- One issue per pull request. Unrelated fixes go in a separate PR.
+
+### 6. Review
+
+- A maintainer replies within 48 hours. Every PR needs one approving review and green CI before it merges.
+- Answer review comments with new commits (not a force-push) while the review is open, so reviewers can see
+  what changed. Resolve a thread only after the reviewer agrees.
+- If CI fails, open the failed job's log, fix it on your branch and push again. Ask in the PR if you are stuck.
+- We squash-merge, so your PR becomes one commit on `main` and you're credited as its author.
+- After merge, your name goes in the next release notes. Thank you!
+
+### Ground rules
+
+- Be kind and assume good intent. Critique code, not people.
+- Don't open issues, comments or PRs just to raise activity numbers. Low-effort or generated spam PRs are closed
+  without review.
 
 ## Safety rules for contributions
 

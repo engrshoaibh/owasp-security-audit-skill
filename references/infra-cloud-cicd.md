@@ -24,7 +24,7 @@ Evaluate ONLY the section(s) matching the confirmed infrastructure.
 - [ ] **12A.7** **Minimal, Pinned, Scanned Images**: Multi-stage builds exclude compilers/dev tools; base images use minimal variants (distroless/Alpine) pinned by version/digest and scanned with Trivy/Grype; memory/CPU limits and `HEALTHCHECK` are configured.
 
 ## 12B. Kubernetes Security [SKIP IF NOT USING K8S]
-- [ ] **12B.1** **Pod Security Standards (Restricted)**: Enforce `runAsNonRoot: true`, `allowPrivilegeEscalation: false`, `capabilities: { drop: ["ALL"] }`, `readOnlyRootFilesystem: true`, and `seccompProfile: RuntimeDefault`.
+- [ ] **12B.1** **Pod Security Standards (Restricted)**: Enforce `runAsNonRoot: true`, `allowPrivilegeEscalation: false`, `capabilities: { drop: ["ALL"] }`, `readOnlyRootFilesystem: true`, and `seccompProfile: RuntimeDefault`. Reject `privileged: true`, `hostNetwork`/`hostPID`, and `hostPath` mounts (scanner `K8S-01`).
 - [ ] **12B.2** **RBAC Least Privilege**: Avoid wildcard `*` in Roles/ClusterRoles; avoid `cluster-admin` ServiceAccounts; set `automountServiceAccountToken: false` when pods don't call K8s API.
 - [ ] **12B.3** **NetworkPolicies**: Default-deny ingress/egress NetworkPolicies restrict pod-to-pod lateral movement across namespaces.
 - [ ] **12B.4** **Secrets Protection**: Sensitive values use External Secrets Operator / KMS-encrypted Secrets (never plain ConfigMaps); `etcd` is encrypted at rest.

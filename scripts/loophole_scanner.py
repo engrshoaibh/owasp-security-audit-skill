@@ -484,6 +484,9 @@ def iter_files(root: Path) -> Iterable[Path]:
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
         for fname in filenames:
             path = Path(dirpath) / fname
+            if path.is_symlink():
+                # Never follow symlinks: a link in an untrusted repo could point at files outside the target.
+                continue
             ext = path.suffix.lower()
             if ext not in SCAN_EXTENSIONS and not fname.startswith(".env") and not is_dockerfile(fname):
                 continue
@@ -511,6 +514,8 @@ def find_sensitive_files(root: Path) -> list[str]:
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
         for fname in filenames:
             if fname in SENSITIVE_FILE_ALLOW:
+                continue
+            if (Path(dirpath) / fname).is_symlink():
                 continue
             if any(fnmatch.fnmatch(fname, g) for g in SENSITIVE_FILE_GLOBS):
                 found.append((Path(dirpath) / fname).relative_to(root).as_posix())

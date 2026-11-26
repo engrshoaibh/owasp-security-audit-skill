@@ -162,13 +162,27 @@ TOOLS: list[ToolSpec] = [
 ]
 
 
+def _which_outside_cwd(name: str) -> str | None:
+    """Resolve an executable to an absolute path, ignoring the current directory.
+
+    On Windows a bare command name can resolve to a file in the current working directory,
+    which may be the untrusted project being audited (CWE-427). Always launch package
+    managers by the absolute path found here.
+    """
+    cwd = os.path.normcase(os.path.abspath(os.getcwd()))
+    search = [d for d in os.environ.get("PATH", "").split(os.pathsep)
+              if d and d != "." and os.path.normcase(os.path.abspath(d)) != cwd]
+    found = shutil.which(name, path=os.pathsep.join(search))
+    return os.path.abspath(found) if found else None
+
+
 def detect_managers() -> dict[str, str | None]:
     return {
-        "scoop": shutil.which("scoop"),
-        "winget": shutil.which("winget"),
-        "choco": shutil.which("choco"),
-        "brew": shutil.which("brew"),
-        "pip": shutil.which("pip") or sys.executable,
+        "scoop": _which_outside_cwd("scoop"),
+        "winget": _which_outside_cwd("winget"),
+        "choco": _which_outside_cwd("choco"),
+        "brew": _which_outside_cwd("brew"),
+        "pip": _which_outside_cwd("pip") or sys.executable,
     }
 
 
@@ -205,7 +219,7 @@ def _run_cmd(cmd: list[str], timeout: int = 300) -> tuple[int, str]:
     exec_cmd = cmd
     if os.name == "nt" and cmd:
         first = cmd[0].lower()
-        if first.endswith((".cmd", ".bat")) or first in ("scoop", "npm", "npx"):
+        if first.endswith((".cmd", ".bat", ".ps1")) or Path(first).name in ("scoop", "npm", "npx"):
             exec_cmd = ["cmd.exe", "/c", *cmd]
     proc = subprocess.run(
         exec_cmd,
@@ -277,22 +291,23 @@ def _install_tool(spec: ToolSpec, managers: dict[str, str | None], verbose: bool
             if spec.scoop_bucket:
                 if verbose:
                     print(f"[*] Ensuring Scoop bucket '{spec.scoop_bucket}'...", file=sys.stderr)
-                _run_cmd(["scoop", "bucket", "add", spec.scoop_bucket], timeout=120)
-            attempts.append((f"scoop install {spec.scoop_pkg}", ["scoop", "install", spec.scoop_pkg]))
+                _run_cmd([managers["scoop"], "bucket", "add", spec.scoop_bucket], timeout=120)
+            attempts.append((f"scoop install {spec.scoop_pkg}", [managers["scoop"], "install", spec.scoop_pkg]))
         if spec.winget_id and managers.get("winget"):
             attempts.append((
                 f"winget install {spec.winget_id}",
                 [
-                    "winget", "install", "--id", spec.winget_id, "-e",
+                    managers["winget"], "install", "--id", spec.winget_id, "-e",
                     "--accept-package-agreements", "--accept-source-agreements", "--silent",
                 ],
             ))
         if spec.choco_pkg and managers.get("choco"):
-            attempts.append((f"choco install {spec.choco_pkg}", ["choco", "install", spec.choco_pkg, "-y"]))
+            attempts.append((f"choco install {spec.choco_pkg}", [managers["choco"], "install", spec.choco_pkg, "-y"]))
     else:
         if spec.brew_pkg and managers.get("brew"):
-            cmd = ["brew", "install", "--cask", spec.brew_pkg] if spec.brew_cask else ["brew", "install", spec.brew_pkg]
-            attempts.append((" ".join(cmd), cmd))
+            brew = managers["brew"]
+            cmd = [brew, "install", "--cask", spec.brew_pkg] if spec.brew_cask else [brew, "install", spec.brew_pkg]
+            attempts.append((" ".join(["brew", *cmd[1:]]), cmd))
 
     if spec.pip_pkg and not spec.isolated_venv:
         attempts.append((f"pip install {spec.pip_pkg}", [sys.executable, "-m", "pip", "install", "--quiet", spec.pip_pkg]))

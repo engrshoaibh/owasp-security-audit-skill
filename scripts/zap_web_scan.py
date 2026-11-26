@@ -55,6 +55,14 @@ COMMON_ZAP_PATHS = [
 
 RISK_ORDER = {"High": 0, "Medium": 1, "Low": 2, "Informational": 3}
 
+
+class ScanIncomplete(RuntimeError):
+    """Raised when a scan did not finish, so its results must not be reported as a clean pass."""
+
+    def __init__(self, reason: str, partial_alerts: list[dict[str, Any]]):
+        super().__init__(reason)
+        self.partial_alerts = partial_alerts
+
 ALERT_MODULE_MAP = [
     (("sql", "injection"), "1.2.2 / 6A.1 SQL Injection"),
     (("cross site scripting", "xss"), "4.1 XSS Prevention"),
@@ -101,14 +109,16 @@ def validate_url(url: str) -> str:
 
 def zap_api_get(zap_url: str, path: str, params: dict[str, Any] | None = None, api_key: str | None = None, timeout: int = 15) -> dict[str, Any]:
     query: dict[str, Any] = dict(params or {})
-    if api_key:
-        query["apikey"] = api_key
     qs = urllib.parse.urlencode({k: v for k, v in query.items() if v is not None})
     endpoint = f"{zap_url.rstrip('/')}{path}"
     if qs:
         endpoint = f"{endpoint}?{qs}"
 
-    req = urllib.request.Request(endpoint, headers={"Accept": "application/json"})
+    headers = {"Accept": "application/json"}
+    if api_key:
+        # Header instead of ?apikey= so the key does not end up in ZAP / proxy access logs.
+        headers["X-ZAP-API-Key"] = api_key
+    req = urllib.request.Request(endpoint, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8", errors="replace"))
@@ -282,9 +292,13 @@ def run_daemon_scan(
     api_format: str = "openapi",
     active_scan_api: bool = False,
 ) -> list[dict[str, Any]]:
+    if mode == "full" and not active_scan_api:
+        # Defence in depth: never start active attacks unless the caller passed explicit authorization.
+        raise PermissionError("Active scan requested without --confirm-authorized.")
     parsed = urllib.parse.urlparse(target)
     base_url = f"{parsed.scheme}://{parsed.netloc}"
     deadline = time.monotonic() + max_wait_sec
+    incomplete: list[str] = []
 
     if mode == "api":
         if verbose:
@@ -299,7 +313,7 @@ def run_daemon_scan(
         # Seed target URL so ZAP registers it in the Sites tree
         if verbose:
             print(f"[*] Seeding target URL in ZAP: {target}", file=sys.stderr)
-        zap_api_get(zap_url, "/JSON/core/action/accessUrl/", {"url": target, "followRedirects": "true"}, api_key)
+        zap_api_get(zap_url, "/JSON/core/action/accessUrl/", {"url": target, "followRedirects": "false"}, api_key)
         time.sleep(1)
 
         # Phase 1: Spider
@@ -314,16 +328,24 @@ def run_daemon_scan(
             status = int(zap_api_get(zap_url, "/JSON/spider/view/status/", {"scanId": scan_id}, api_key).get("status", 100))
             if verbose:
                 print(f"    Spider progress: {status}%", file=sys.stderr)
-            if status >= 100 or time.monotonic() >= deadline:
+            if status >= 100:
+                break
+            if time.monotonic() >= deadline:
+                incomplete.append(f"spider stopped at {status}% (timeout)")
+                zap_api_get(zap_url, "/JSON/spider/action/stop/", {"scanId": scan_id}, api_key)
                 break
             time.sleep(2)
 
     # Phase 2: Wait for Passive Scanner queue to drain
     if verbose:
         print("[*] Draining Passive Scanner queue...", file=sys.stderr)
-    while time.monotonic() < deadline:
+    remaining = 0
+    while True:
         remaining = int(zap_api_get(zap_url, "/JSON/pscan/view/recordsToScan/", api_key=api_key).get("recordsToScan", 0))
         if remaining <= 0:
+            break
+        if time.monotonic() >= deadline:
+            incomplete.append(f"passive scan left {remaining} records unscanned (timeout)")
             break
         time.sleep(1)
 
@@ -331,7 +353,8 @@ def run_daemon_scan(
     if mode == "full" or (mode == "api" and active_scan_api):
         if verbose:
             print(f"[*] Starting Active Scan on {base_url}...", file=sys.stderr)
-        ascan_resp = zap_api_get(zap_url, "/JSON/ascan/action/scan/", {"url": base_url, "recurse": "true"}, api_key)
+        # Scope the active scan to the authorized target URL, not every path on the host.
+        ascan_resp = zap_api_get(zap_url, "/JSON/ascan/action/scan/", {"url": target, "recurse": "true"}, api_key)
         ascan_id = ascan_resp.get("scan")
         if ascan_id is None:
             raise RuntimeError(f"Unexpected ZAP active scan response: {ascan_resp}")
@@ -339,12 +362,19 @@ def run_daemon_scan(
             status = int(zap_api_get(zap_url, "/JSON/ascan/view/status/", {"scanId": ascan_id}, api_key).get("status", 100))
             if verbose:
                 print(f"    Active scan progress: {status}%", file=sys.stderr)
-            if status >= 100 or time.monotonic() >= deadline:
+            if status >= 100:
+                break
+            if time.monotonic() >= deadline:
+                incomplete.append(f"active scan stopped at {status}% (timeout)")
+                zap_api_get(zap_url, "/JSON/ascan/action/stop/", {"scanId": ascan_id}, api_key)
                 break
             time.sleep(3)
 
     alerts_resp = zap_api_get(zap_url, "/JSON/core/view/alerts/", {"baseurl": base_url}, api_key, timeout=30)
-    return alerts_resp.get("alerts", [])
+    alerts = alerts_resp.get("alerts", [])
+    if incomplete:
+        raise ScanIncomplete("; ".join(incomplete), alerts)
+    return alerts
 
 
 def run_docker_scan(
@@ -352,7 +382,10 @@ def run_docker_scan(
     mode: str,
     api_format: str,
     work_dir: Path,
+    authorized: bool = False,
 ) -> tuple[int, list[dict[str, Any]], str]:
+    if mode == "full" and not authorized:
+        raise PermissionError("Active scan requested without --confirm-authorized.")
     work_dir.mkdir(parents=True, exist_ok=True)
     json_name = f"zap-{mode}-report.json"
     html_name = f"zap-{mode}-report.html"
@@ -374,6 +407,9 @@ def run_docker_scan(
     ]
     if mode == "api":
         cmd.extend(["-f", api_format])
+        if not authorized:
+            # zap-api-scan.py runs an ACTIVE scan by default; -S (safe mode) limits it to a passive baseline.
+            cmd.append("-S")
 
     proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
     report_path = work_dir / json_name
@@ -394,6 +430,10 @@ def run_docker_scan(
                     "url": (alert.get("instances") or [{}])[0].get("uri", target),
                     "solution": alert.get("solution", ""),
                 })
+    if not report_path.exists():
+        # No report means the scan did not run (bad target, Docker error). Never treat that as "no alerts".
+        raise ScanIncomplete(f"ZAP Docker scan produced no report (exit {proc.returncode}): "
+                             f"{(proc.stderr or proc.stdout or '').strip()[-400:]}", [])
     return proc.returncode, alerts, (proc.stdout or proc.stderr).strip()
 
 
@@ -501,29 +541,15 @@ def main() -> int:
             print_setup_guide(env)
             return 3
 
-    if engine == "daemon":
-        if not env["daemon_running"]:
-            print(f"Error: ZAP daemon not reachable at {args.zap_url}. Use --engine local or --engine auto to auto-start ZAP.", file=sys.stderr)
-            return 3
-        raw_alerts = run_daemon_scan(
-            args.zap_url,
-            args.api_key,
-            target,
-            args.mode,
-            args.timeout,
-            args.verbose,
-            api_format=args.api_format,
-            active_scan_api=args.confirm_authorized,
-        )
-    elif engine == "local":
-        zap_bin = env["local_zap_binary"]
-        if not zap_bin:
-            print("Error: Local ZAP binary not found. Install ZAP or run with --engine docker.", file=sys.stderr)
-            return 3
-        with managed_zap_daemon(zap_bin, startup_timeout=args.startup_timeout, verbose=args.verbose) as (zap_url, api_key):
+    incomplete_reason: str | None = None
+    try:
+        if engine == "daemon":
+            if not env["daemon_running"]:
+                print(f"Error: ZAP daemon not reachable at {args.zap_url}. Use --engine local or --engine auto to auto-start ZAP.", file=sys.stderr)
+                return 3
             raw_alerts = run_daemon_scan(
-                zap_url,
-                api_key,
+                args.zap_url,
+                args.api_key,
                 target,
                 args.mode,
                 args.timeout,
@@ -531,21 +557,53 @@ def main() -> int:
                 api_format=args.api_format,
                 active_scan_api=args.confirm_authorized,
             )
-    else:
-        if not env["docker_installed"]:
-            print("Error: Docker is not installed. Use --engine local or run --check for details.", file=sys.stderr)
-            return 3
-        _, raw_alerts, _ = run_docker_scan(target, args.mode, args.api_format, Path(args.work_dir))
+        elif engine == "local":
+            zap_bin = env["local_zap_binary"]
+            if not zap_bin:
+                print("Error: Local ZAP binary not found. Install ZAP or run with --engine docker.", file=sys.stderr)
+                return 3
+            with managed_zap_daemon(zap_bin, startup_timeout=args.startup_timeout, verbose=args.verbose) as (zap_url, api_key):
+                raw_alerts = run_daemon_scan(
+                    zap_url,
+                    api_key,
+                    target,
+                    args.mode,
+                    args.timeout,
+                    args.verbose,
+                    api_format=args.api_format,
+                    active_scan_api=args.confirm_authorized,
+                )
+        else:
+            if not env["docker_installed"]:
+                print("Error: Docker is not installed. Use --engine local or run --check for details.", file=sys.stderr)
+                return 3
+            _, raw_alerts, _ = run_docker_scan(target, args.mode, args.api_format, Path(args.work_dir),
+                                          authorized=args.confirm_authorized)
+    except ScanIncomplete as exc:
+        # Fail closed: report what we have, but mark the run incomplete and exit non-zero.
+        incomplete_reason = str(exc)
+        raw_alerts = exc.partial_alerts
+    except PermissionError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 2
 
     alerts = deduplicate_alerts(raw_alerts)
     if args.format == "json":
-        print(json.dumps({"target": target, "mode": args.mode, "engine": engine, "alerts": alerts}, indent=2))
+        print(json.dumps({"target": target, "mode": args.mode, "engine": engine, "complete": incomplete_reason is None,
+                          "incomplete_reason": incomplete_reason, "alerts": alerts}, indent=2))
     else:
-        print(format_markdown(target, args.mode, engine, alerts))
+        report = format_markdown(target, args.mode, engine, alerts)
+        if incomplete_reason:
+            report = f"> **INCOMPLETE SCAN:** {incomplete_reason}. Results below are partial.\n\n" + report
+        print(report)
 
+    if incomplete_reason:
+        print(f"Scan incomplete: {incomplete_reason}", file=sys.stderr)
+        return 3
     if args.fail_on != "none":
         threshold = {"high": 0, "medium": 1, "low": 2}[args.fail_on]
-        if any(RISK_ORDER.get(a["risk"], 9) <= threshold for a in alerts):
+        # Unknown risk labels count as High so a parsing change can never turn into a silent pass.
+        if any(RISK_ORDER.get(a["risk"], 0) <= threshold for a in alerts):
             return 1
     return 0
 

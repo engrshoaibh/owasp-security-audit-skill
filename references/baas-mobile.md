@@ -1,5 +1,7 @@
 # BaaS (Firebase / Supabase) & Mobile Security Reference
 
+> OWASP Top 10:2025: A01, A02, A04 · OWASP MASVS · Category lookup: [owasp-mapping.md](./owasp-mapping.md)
+
 > References:
 > - [OWASP Mobile Application Security CS](https://cheatsheetseries.owasp.org/cheatsheets/Mobile_Application_Security_Cheat_Sheet.html)
 > - [OWASP Pinning CS](https://cheatsheetseries.owasp.org/cheatsheets/Pinning_Cheat_Sheet.html)

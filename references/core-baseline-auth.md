@@ -1,5 +1,7 @@
 # Core Baseline, Authentication & Access Control Reference
 
+> OWASP Top 10:2025: A01, A02, A04, A05, A07, A09, A10 · API Top 10:2023: API1, API2, API3, API5 · Category lookup: [owasp-mapping.md](./owasp-mapping.md)
+
 > OWASP Cheat Sheets:
 > - [Input Validation](https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html)
 > - [Error Handling](https://cheatsheetseries.owasp.org/cheatsheets/Error_Handling_Cheat_Sheet.html)
@@ -70,6 +72,13 @@
 - [ ] **1.6.2** Lockfiles (`package-lock.json`, `poetry.lock`, `go.sum`, `pubspec.lock`, etc.) are committed and reviewed on updates.
 - [ ] **1.6.3** Automated SCA / dependency PR alerts (Dependabot, Renovate, Snyk) are enabled.
 - [ ] **1.6.4** Unused, abandoned, typosquatted, or unverified packages are removed.
+
+### 1.7 Mishandling of Exceptional Conditions (A10:2025)
+- [ ] **1.7.1** **Fail closed**: authorization, payment, and validation code denies access when an exception, timeout, or missing value occurs (no `except: pass`, no `catch {}` that falls through to the allowed path, no default-allow on a failed policy lookup).
+- [ ] **1.7.2** Errors from dependencies (DB, cache, auth provider, LLM API) are handled explicitly: retries are bounded with backoff, and partial failures roll back transactions instead of leaving half-applied state.
+- [ ] **1.7.3** Resources (file handles, locks, DB connections, temp files) are released on every error path (`with`, `try/finally`, `defer`, `using`).
+- [ ] **1.7.4** Unexpected input types, nulls, and oversized values are rejected before use, so they cannot crash a worker or skip a security check.
+- [ ] **1.7.5** Unhandled exceptions and promise rejections are caught by a top-level handler that logs them and returns a generic error, without exposing internals or killing the process for every user.
 
 ---
 

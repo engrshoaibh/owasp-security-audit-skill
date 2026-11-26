@@ -1,5 +1,7 @@
 # Infrastructure, Containers, Kubernetes, IaC, CI/CD & Serverless Reference (Module 12)
 
+> OWASP Top 10:2025: A02, A03, A08 · Category lookup: [owasp-mapping.md](./owasp-mapping.md)
+
 > OWASP Cheat Sheets:
 > - [Docker Security](https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html)
 > - [Kubernetes Security](https://cheatsheetseries.owasp.org/cheatsheets/Kubernetes_Security_Cheat_Sheet.html)

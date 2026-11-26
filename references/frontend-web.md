@@ -1,5 +1,7 @@
 # Frontend & Web Application Security Reference (Module 4)
 
+> OWASP Top 10:2025: A02, A05, A01 (redirects) · API Top 10:2023: API8 · Category lookup: [owasp-mapping.md](./owasp-mapping.md)
+
 > OWASP Cheat Sheets:
 > - [Cross-Site Scripting (XSS) Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html)
 > - [DOM-Based XSS Prevention](https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html)

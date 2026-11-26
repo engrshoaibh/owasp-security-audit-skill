@@ -1,0 +1,12 @@
+{
+  "name": "owasp-security-audit-skill",
+  "owner": { "name": "engrshoaibh" },
+  "description": "OWASP-based security audit skill for AI coding agents",
+  "plugins": [
+    {
+      "name": "owasp-security-audit",
+      "source": "./",
+      "description": "Security audit of a codebase mapped to OWASP Top 10:2025, API Top 10 and LLM Top 10, with secret, SAST, SCA and DAST tooling."
+    }
+  ]
+}

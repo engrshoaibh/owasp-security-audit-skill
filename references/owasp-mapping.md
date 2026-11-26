@@ -9,7 +9,7 @@ Use these ids in the `owasp` field of every finding. Pick the most specific cate
 | Id | Category | Where checked in this skill | Scanner rules |
 |:---|:---|:---|:---|
 | A01:2025 | Broken Access Control (includes SSRF) | core-baseline-auth Module 3, databases-apis Modules 7 & 14, baas-mobile 8–9 | MASS-01, PATH-01, REDIR-01, SSRF-01, BAAS-01/02 |
-| A02:2025 | Security Misconfiguration | frontend-web 4.2–4.4, backend-frameworks, infra-cloud-cicd | CORS-01, DBG-01, COOKIE-01, XXE-01, DOCKER-02, GIT-01..04 |
+| A02:2025 | Security Misconfiguration | frontend-web 4.2–4.4, backend-frameworks, infra-cloud-cicd | CORS-01, DBG-01, COOKIE-01, XXE-01, DOCKER-02, K8S-01, GIT-01..04 |
 | A03:2025 | Software Supply Chain Failures | core-baseline-auth 1.6, infra-cloud-cicd 12C, Step 4 (SCA) | GHA-01/02/03, DOCKER-01, LLM-01 |
 | A04:2025 | Cryptographic Failures | core-baseline-auth 1.1, Module 15 | SEC-02, TLS-01, CRYPTO-01/02/03 |
 | A05:2025 | Injection (SQL, NoSQL, OS, template, XSS) | core-baseline-auth 1.2, frontend-web 4.1, databases-apis Module 6 | INJ-01/02/03, SSTI-01, XSS-01, NOSQL-01 |

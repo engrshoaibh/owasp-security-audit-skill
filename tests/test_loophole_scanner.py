@@ -77,6 +77,9 @@ CASES = [
     ("GHA-02", ".github/workflows/ci.yml", '      run: echo "${{ github.event.issue.title }}"', '      run: echo "$TITLE"'),
     ("GHA-03", ".github/workflows/ci.yml", "      - uses: someorg/some-action@v2",
      "      - uses: someorg/some-action@0123456789abcdef0123456789abcdef01234567 # v2"),
+    ("K8S-01", "deploy.yaml",
+     "apiVersion: v1\nkind: Pod\nspec:\n  containers:\n  - securityContext:\n      privileged: true\n",
+     "apiVersion: v1\nkind: Pod\nspec:\n  containers:\n  - securityContext:\n      privileged: false\n"),
     ("LOOP-02", "agent.py", "ex = AgentExecutor(agent=a, tools=t)", "ex = AgentExecutor(agent=a, tools=t, max_iterations=5)"),
     ("LOOP-03", "worker.py", "while True:\n    poll()\n", "while True:\n    if done():\n        break\n"),
     ("SSRF-01", "fetch.py", "requests.get(url, allow_redirects=True)", "requests.get(url, allow_redirects=False)"),
@@ -220,6 +223,29 @@ class FileChecks(unittest.TestCase):
         ids = rule_ids({"Dockerfile": df})
         self.assertNotIn("DOCKER-01", ids)  # "FROM build" references a stage, not an image
         self.assertNotIn("DOCKER-02", ids)
+
+    def test_k8s_hostpath_and_host_network(self):
+        host_path = (
+            "apiVersion: apps/v1\nkind: Deployment\nspec:\n  template:\n    spec:\n"
+            "      volumes:\n      - name: docker\n        hostPath:\n          path: /var/run/docker.sock\n"
+        )
+        host_net = (
+            "apiVersion: v1\nkind: Pod\nspec:\n  hostNetwork: true\n  containers:\n  - name: app\n"
+        )
+        self.assertIn("K8S-01", rule_ids({"k8s/deploy.yaml": host_path}))
+        self.assertIn("K8S-01", rule_ids({"pod.yml": host_net}))
+
+    def test_k8s_skips_compose_and_github_workflows(self):
+        compose = "services:\n  db:\n    image: postgres\n    privileged: true\n"
+        workflow = (
+            "name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n"
+            "    container:\n      image: node:20\n      options: --privileged\n"
+            "    steps:\n      - run: echo hi\n"
+        )
+        # Compose has privileged but no Kubernetes kind; workflows live under .github/
+        self.assertNotIn("K8S-01", rule_ids({"docker-compose.yml": compose}))
+        self.assertNotIn("K8S-01", rule_ids({".github/workflows/ci.yml": "kind: Pod\nprivileged: true\n"}))
+        self.assertNotIn("K8S-01", rule_ids({".github/workflows/ci.yml": workflow}))
 
 
 class Symlinks(unittest.TestCase):

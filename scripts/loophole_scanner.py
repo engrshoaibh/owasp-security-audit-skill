@@ -327,6 +327,17 @@ RULES: list[Rule] = [
         "Pin third-party actions to a full 40-character commit SHA and let Dependabot keep them updated.",
         path_globs=(".github/workflows/*", ".github/actions/*", "*action.yml", "*action.yaml"),
     ),
+    Rule(
+        "K8S-01", "Kubernetes privileged container, host namespace, or hostPath mount", "High", "high", "CWE-250",
+        ("A02:2025",), "12B Kubernetes Security",
+        re.compile(
+            r"(?i)^\s*(?:privileged|allowPrivilegeEscalation|hostNetwork|hostPID)\s*:\s*true\b"
+            r"|^\s*hostPath\s*:"
+        ),
+        "Set privileged/allowPrivilegeEscalation/hostNetwork/hostPID to false, drop capabilities, and avoid hostPath "
+        "(use emptyDir, PVC, or projected volumes). Enforce Pod Security Standards Restricted.",
+        extensions=(".yaml", ".yml"),
+    ),
     # --- Loop & Resource Exhaustion Hazards ---
     Rule(
         "LOOP-01", "Potential ReDoS regex (nested quantifier)", "Medium", "low", "CWE-1333",
@@ -587,6 +598,7 @@ def check_workflow_file(rel: str, text: str) -> list[Finding]:
 
 
 FROM_RE = re.compile(r"^\s*FROM\s+(?:--platform=\S+\s+)?(\S+)(?:\s+AS\s+(\S+))?", re.IGNORECASE)
+K8S_KIND_RE = re.compile(r"(?im)^\s*kind\s*:\s*(?:Pod|Deployment|DaemonSet|StatefulSet)\b")
 
 
 def check_dockerfile(rel: str, text: str) -> list[Finding]:
@@ -712,6 +724,9 @@ def scan_repo(root: Path, only_files: set[str] | None = None,
                 match = rule.pattern.search(line)
                 if not match:
                     continue
+                if rule.rule_id == "K8S-01":
+                    if rel.startswith(".github/") or not K8S_KIND_RE.search(text):
+                        continue
                 if rule.rule_id == "LOOP-02":
                     window = "\n".join(lines[max(0, idx - 1): min(len(lines), idx + 10)])
                     if any(k in window for k in ("max_iterations", "max_execution_time", "recursion_limit")):

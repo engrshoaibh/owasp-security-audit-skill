@@ -55,6 +55,12 @@ jobs:
         run: |
           python scripts/loophole_scanner.py --target . --fail-on high
 
+      - name: Demo app still produces the documented findings
+        run: |
+          cp -r examples/vulnerable-flask-app /tmp/vuln-demo && mv /tmp/vuln-demo/app.py.demo /tmp/vuln-demo/app.py
+          python scripts/loophole_scanner.py --target /tmp/vuln-demo --format json --output /tmp/demo.json
+          python -c "import json; ids={f['rule_id'] for f in json.load(open('/tmp/demo.json'))['findings']}; need={'SEC-05','CRYPTO-01','INJ-01','SSTI-01','REDIR-01','CRYPTO-02','DBG-01','DOCKER-01','DOCKER-02'}; missing=need-ids; assert not missing, missing"
+
       - name: Test ZAP Web Scan CLI
         run: |
           python scripts/zap_web_scan.py --help

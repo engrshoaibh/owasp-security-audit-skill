@@ -101,6 +101,16 @@ class RuleCases(unittest.TestCase):
         header = "-----BEGIN " + "RSA PRIVATE KEY-----"
         self.assertIn("SEC-02", rule_ids({"key.txt.py": f'K = """{header}"""\n'}))
 
+    def test_multiline_sql_fstring(self):
+        src = 'row = db.execute(\n    f"SELECT id FROM users WHERE email = \'{email}\'"\n)\n'
+        self.assertIn("INJ-01", rule_ids({"a.py": src}))
+        self.assertIn("INJ-01", rule_ids({"a.js": "const q = `SELECT * FROM t WHERE id = ${id}`;\n"}))
+        self.assertNotIn("INJ-01", rule_ids({"a.py": 'msg = f"Selected {n} items"\n'}))
+
+    def test_ssti_concatenation(self):
+        self.assertIn("SSTI-01", rule_ids({"v.py": 'return render_template_string("<h1>" + name + "</h1>")\n'}))
+        self.assertNotIn("SSTI-01", rule_ids({"v.py": 'return render_template_string("<h1>{{ name }}</h1>", name=name)\n'}))
+
     def test_redos(self):
         self.assertIn("LOOP-01", rule_ids({"v.py": 'r = re.compile(r"(a+)+$")\n'}))
         self.assertNotIn("LOOP-01", rule_ids({"v.py": 'r = re.compile(r"^[a-z]+$")\n'}))
@@ -223,6 +233,39 @@ class Symlinks(unittest.TestCase):
             self.assertFalse(findings)
 
 
+class ScopeOptions(unittest.TestCase):
+    BAD = "subprocess.run(cmd, shell=True)\n"
+
+    def test_paths_restricts_scan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "src" / "auth").mkdir(parents=True)
+            (root / "src" / "auth" / "a.py").write_text(self.BAD)
+            (root / "other.py").write_text(self.BAD)
+            files = {f.file for f in ls.scan_repo(root, only_paths=["src/auth"])[0]}
+            self.assertEqual(files, {"src/auth/a.py"})
+
+    def test_paths_keeps_dot_directories(self):
+        self.assertEqual(ls._normalize_rel("./.github/workflows/"), ".github/workflows")
+
+    def test_changed_only_scans_new_and_modified_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "old.py").write_text(self.BAD)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "init"], cwd=root, check=True)
+            (root / "new.py").write_text(self.BAD)
+            changed = ls.changed_files(root, "HEAD")
+            self.assertEqual(changed, {"new.py"})
+            files = {f.file for f in ls.scan_repo(root, only_files=changed)[0]}
+            self.assertEqual(files, {"new.py"})
+
+    def test_changed_rejects_option_like_ref(self):
+        with self.assertRaises(ValueError):
+            ls.changed_files(Path("."), "--output=/tmp/x")
+
+
 class Outputs(unittest.TestCase):
     def _run(self, *args: str, files: dict[str, str]) -> subprocess.CompletedProcess:
         with tempfile.TemporaryDirectory() as tmp:
@@ -255,6 +298,13 @@ class Outputs(unittest.TestCase):
         self.assertEqual(self._run("--fail-on", "high", files=files).returncode, 1)
         self.assertEqual(self._run("--fail-on", "critical", files=files).returncode, 0)
         self.assertEqual(self._run(files=files).returncode, 0)
+
+    def test_quick_hides_low_confidence(self):
+        files = {"a.py": "while True:\n    poll()\n"}  # LOOP-03 is low confidence
+        full = json.loads(self._run("--format", "json", files=files).stdout)
+        quick = json.loads(self._run("--format", "json", "--quick", files=files).stdout)
+        self.assertEqual(full["summary"]["total"], 1)
+        self.assertEqual(quick["summary"]["total"], 0)
 
     def test_baseline_round_trip(self):
         with tempfile.TemporaryDirectory() as tmp:

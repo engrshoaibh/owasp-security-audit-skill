@@ -14,6 +14,8 @@ Usage:
   python scripts/loophole_scanner.py --target . --fail-on high
   python scripts/loophole_scanner.py --target . --write-baseline .security-skill-baseline.json
   python scripts/loophole_scanner.py --target . --run-tools
+  python scripts/loophole_scanner.py --target . --quick --changed origin/main   # PR / quick check
+  python scripts/loophole_scanner.py --target . --quick --paths src/auth
 
 Suppress a reviewed false positive with a comment on the same line or the line above:
   # security-skill: ignore[INJ-02]   (one or more rule ids, comma separated)
@@ -191,7 +193,9 @@ RULES: list[Rule] = [
     Rule(
         "INJ-01", "SQL built with string interpolation / raw unsafe query", "High", "medium", "CWE-89",
         ("A05:2025",), "1.2.2 / 6A.1 SQLi",
-        re.compile(r"(?:\.(?:query|execute|executemany|raw|whereRaw|orderByRaw|FromSqlRaw|ExecuteSqlRaw)\s*\(\s*(?:f['\"]|`[^`]*\$\{|['\"][^'\"]*['\"]\s*(?:\+|%\s*[(\w])|['\"][^'\"]*['\"]\s*\.format\s*\()|\$queryRawUnsafe|\$executeRawUnsafe)"),
+        re.compile(r"(?:\.(?:query|execute|executemany|raw|whereRaw|orderByRaw|FromSqlRaw|ExecuteSqlRaw)\s*\(\s*(?:f['\"]|`[^`]*\$\{|['\"][^'\"]*['\"]\s*(?:\+|%\s*[(\w])|['\"][^'\"]*['\"]\s*\.format\s*\()|\$queryRawUnsafe|\$executeRawUnsafe"
+                   # SQL text built inline with interpolation (also catches queries split across lines)
+                   r"|\bf\"\s*(?i:SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b[^\"]*\{|\bf'\s*(?i:SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b[^']*\{|`\s*(?i:SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b[^`]*\$\{)"),
         "Use parameterized queries / prepared statements ($1, ?, :param) or tagged-template Prisma.$queryRaw.",
     ),
     Rule(
@@ -216,7 +220,7 @@ RULES: list[Rule] = [
     Rule(
         "SSTI-01", "Server-side template built from a dynamic string (SSTI)", "High", "medium", "CWE-1336",
         ("A05:2025",), "1.2 Injection / 5 Templates",
-        re.compile(r"(?:\brender_template_string\s*\(\s*(?!['\"])|\bjinja2\.Template\s*\(\s*(?!['\"])|\bEnvironment\([^)]*\)\.from_string\s*\(\s*(?!['\"])|\b(?:ejs|pug|handlebars|Handlebars|nunjucks)\.(?:render|compile|renderString)\s*\(\s*req\.)"),
+        re.compile(r"(?:\brender_template_string\s*\(\s*(?!['\"][^'\"]*['\"]\s*[,)])|\bjinja2\.Template\s*\(\s*(?!['\"][^'\"]*['\"]\s*[,)])|\bEnvironment\([^)]*\)\.from_string\s*\(\s*(?!['\"][^'\"]*['\"]\s*[,)])|\b(?:ejs|pug|handlebars|Handlebars|nunjucks)\.(?:render|compile|renderString)\s*\(\s*req\.)"),
         "Render fixed template files and pass user data only as context variables; never compile user-controlled templates.",
     ),
     Rule(
@@ -632,15 +636,52 @@ def post_adjust(rule: Rule, line: str, severity: str, confidence: str) -> tuple[
     return severity, confidence
 
 
-def scan_repo(root: Path) -> tuple[list[Finding], int]:
-    """Return (findings, inline_suppressed_count)."""
+def changed_files(root: Path, base: str) -> set[str] | None:
+    """Files changed versus `base` (committed, staged, unstaged) plus untracked files. None if git is unavailable."""
+    if not re.fullmatch(r"[\w./@^~:-]{1,200}", base) or base.startswith("-"):
+        raise ValueError(f"Invalid git ref: {base!r}")
+    diff = _git(root, "diff", "--name-only", "--diff-filter=ACMR", base, "--")
+    untracked = _git(root, "ls-files", "--others", "--exclude-standard")
+    if diff is None or diff.returncode != 0:
+        return None
+    files = {l.strip() for l in diff.stdout.splitlines() if l.strip()}
+    if untracked is not None and untracked.returncode == 0:
+        files |= {l.strip() for l in untracked.stdout.splitlines() if l.strip()}
+    return files
+
+
+def _normalize_rel(path: str) -> str:
+    path = path.replace("\\", "/")
+    while path.startswith("./"):
+        path = path[2:]
+    return path.rstrip("/") or "."
+
+
+def in_scope(rel: str, only_files: set[str] | None, only_paths: list[str] | None) -> bool:
+    if only_files is not None and rel not in only_files:
+        return False
+    if only_paths:
+        return any(rel == p or rel.startswith(p.rstrip("/") + "/") for p in only_paths)
+    return True
+
+
+def scan_repo(root: Path, only_files: set[str] | None = None,
+              only_paths: list[str] | None = None) -> tuple[list[Finding], int]:
+    """Return (findings, inline_suppressed_count).
+
+    only_files / only_paths restrict the scan (e.g. to a PR's changed files). The repo-wide
+    git hygiene check only runs on unrestricted scans.
+    """
     self_path = Path(__file__).resolve()
-    findings = check_git_hygiene(root)
+    restricted = only_files is not None or bool(only_paths)
+    findings = [] if restricted else check_git_hygiene(root)
     suppressed = 0
     for path in iter_files(root):
         if path.resolve() == self_path:
             continue
         rel = path.relative_to(root).as_posix()
+        if not in_scope(rel, only_files, only_paths):
+            continue
         ext = path.suffix.lower()
         try:
             text = path.read_text(encoding="utf-8", errors="ignore")
@@ -967,6 +1008,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--run-tools", action="store_true", help="Also execute installed local static scanners")
     parser.add_argument("--allow-network-verify", action="store_true",
                         help="Let TruffleHog verify candidate secrets against provider APIs (sends them over the network)")
+    parser.add_argument("--paths", nargs="+", metavar="PATH",
+                        help="Only scan these files or directories (relative to --target)")
+    parser.add_argument("--changed", nargs="?", const="HEAD", metavar="BASE",
+                        help="Only scan files changed versus a git ref (default HEAD; use e.g. origin/main for a PR)")
+    parser.add_argument("--quick", action="store_true",
+                        help="Quick check preset: hide low-confidence findings and skip external tools")
     parser.add_argument("--list-rules", action="store_true", help="Print the rule catalog with CWE/OWASP mappings and exit")
     args = parser.parse_args(argv)
 
@@ -982,7 +1029,25 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Error: target directory not found: {root}", file=sys.stderr)
         return 2
 
-    findings, suppressed = scan_repo(root)
+    only_files: set[str] | None = None
+    if args.changed:
+        try:
+            only_files = changed_files(root, args.changed)
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 2
+        if only_files is None:
+            print(f"Error: --changed needs a git repository and a valid ref ({args.changed}).", file=sys.stderr)
+            return 2
+    only_paths = [_normalize_rel(p) for p in args.paths] if args.paths else None
+    if only_paths and "." in only_paths:
+        only_paths = None
+    if args.quick:
+        args.run_tools = False
+        if args.min_confidence == "low":
+            args.min_confidence = "medium"
+
+    findings, suppressed = scan_repo(root, only_files, only_paths)
 
     conf_rank = {"low": 0, "medium": 1, "high": 2}
     findings = [f for f in findings if conf_rank.get(f.confidence, 0) >= conf_rank[args.min_confidence]]

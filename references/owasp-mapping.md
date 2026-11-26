@@ -23,11 +23,11 @@ Use these ids in the `owasp` field of every finding. Pick the most specific cate
 
 | Id | Category | Where checked |
 |:---|:---|:---|
-| API1:2023 | Broken Object Level Authorization (BOLA / IDOR) | core-baseline-auth Module 3; SKILL.md Step 6 manual review |
+| API1:2023 | Broken Object Level Authorization (BOLA / IDOR) | access-control-review.md; core-baseline-auth Module 3 |
 | API2:2023 | Broken Authentication | core-baseline-auth Module 2 |
 | API3:2023 | Broken Object Property Level Authorization (mass assignment, excessive data exposure) | databases-apis 7A, core-baseline-auth Module 3 |
 | API4:2023 | Unrestricted Resource Consumption (rate limits, pagination, GraphQL depth, ReDoS) | databases-apis 7A/7B, toolbox 19.4 |
-| API5:2023 | Broken Function Level Authorization (admin routes, HTTP verb tampering) | core-baseline-auth Module 3 |
+| API5:2023 | Broken Function Level Authorization (admin routes, HTTP verb tampering) | access-control-review.md Step 5; core-baseline-auth Module 3 |
 | API6:2023 | Unrestricted Access to Sensitive Business Flows (bots, scalping, coupon abuse) | databases-apis Module 17 |
 | API7:2023 | Server Side Request Forgery | databases-apis Module 14 |
 | API8:2023 | Security Misconfiguration (CORS, verbose errors, missing headers) | frontend-web 4.3–4.4, backend-frameworks |

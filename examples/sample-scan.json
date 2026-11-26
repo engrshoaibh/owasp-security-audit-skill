@@ -1,0 +1,177 @@
+{
+  "schema_version": "1.0",
+  "tool": {
+    "name": "owasp-security-audit-skill/loophole_scanner",
+    "version": "2.0.0"
+  },
+  "target": "examples/vulnerable-flask-app",
+  "summary": {
+    "total": 9,
+    "critical": 0,
+    "high": 4,
+    "medium": 4,
+    "low": 1,
+    "suppressed_inline": 0,
+    "suppressed_baseline": 0
+  },
+  "findings": [
+    {
+      "rule_id": "SEC-05",
+      "title": "Hardcoded fallback JWT / session secret",
+      "severity": "High",
+      "confidence": "high",
+      "cwe": "CWE-1188",
+      "owasp": [
+        "A02:2025",
+        "A07:2025"
+      ],
+      "module": "2.3 JWT / Session",
+      "file": "app.py",
+      "line": 14,
+      "snippet": "SECRET_KEY = os.environ.get(\"SECRET_KEY\") or \"dev-secret\"  # F-4: hardcoded fallback secret",
+      "remediation": "Fail closed on startup if the signing secret env var is unset; never fall back to a hardcoded default.",
+      "context": "code",
+      "fingerprint": "4a61e652cbcfd38fd4366a18"
+    },
+    {
+      "rule_id": "CRYPTO-01",
+      "title": "Weak hash (MD5/SHA-1) used for passwords",
+      "severity": "High",
+      "confidence": "medium",
+      "cwe": "CWE-916",
+      "owasp": [
+        "A04:2025",
+        "A07:2025"
+      ],
+      "module": "2.1 Password Storage",
+      "file": "app.py",
+      "line": 35,
+      "snippet": "password_hash = hashlib.md5(request.form[\"password\"].encode()).hexdigest()  # F-5: MD5 password hashing",
+      "remediation": "Store passwords with Argon2id, scrypt or bcrypt (or PBKDF2 with a high work factor), never fast hashes.",
+      "context": "code",
+      "fingerprint": "c1792568edd9b59ae610b485"
+    },
+    {
+      "rule_id": "INJ-01",
+      "title": "SQL built with string interpolation / raw unsafe query",
+      "severity": "High",
+      "confidence": "medium",
+      "cwe": "CWE-89",
+      "owasp": [
+        "A05:2025"
+      ],
+      "module": "1.2.2 / 6A.1 SQLi",
+      "file": "app.py",
+      "line": 37,
+      "snippet": "f\"SELECT id FROM users WHERE email = '{email}' AND password_hash = '{password_hash}'\"  # F-1: SQL injection",
+      "remediation": "Use parameterized queries / prepared statements ($1, ?, :param) or tagged-template Prisma.$queryRaw.",
+      "context": "code",
+      "fingerprint": "51028d52ffe56b72ad671930"
+    },
+    {
+      "rule_id": "SSTI-01",
+      "title": "Server-side template built from a dynamic string (SSTI)",
+      "severity": "High",
+      "confidence": "medium",
+      "cwe": "CWE-1336",
+      "owasp": [
+        "A05:2025"
+      ],
+      "module": "1.2 Injection / 5 Templates",
+      "file": "app.py",
+      "line": 57,
+      "snippet": "return render_template_string(\"<h1>Hello \" + name + \"</h1>\")  # F-3: server-side template injection",
+      "remediation": "Render fixed template files and pass user data only as context variables; never compile user-controlled templates.",
+      "context": "code",
+      "fingerprint": "4642fd641e2a008ab34ab7a1"
+    },
+    {
+      "rule_id": "DOCKER-02",
+      "title": "Container runs as root (no non-root USER in final stage)",
+      "severity": "Medium",
+      "confidence": "medium",
+      "cwe": "CWE-250",
+      "owasp": [
+        "A02:2025"
+      ],
+      "module": "12A Container Security",
+      "file": "Dockerfile",
+      "line": 2,
+      "snippet": "FROM python:latest",
+      "remediation": "Create an unprivileged user and switch to it with USER in the final stage (distroless :nonroot images also work).",
+      "context": "code",
+      "fingerprint": "6621abbcefd1fb7ddc72cfd6"
+    },
+    {
+      "rule_id": "REDIR-01",
+      "title": "Open redirect to a request-controlled URL",
+      "severity": "Medium",
+      "confidence": "medium",
+      "cwe": "CWE-601",
+      "owasp": [
+        "A01:2025"
+      ],
+      "module": "4.6 Unvalidated Redirects",
+      "file": "app.py",
+      "line": 42,
+      "snippet": "return redirect(request.args.get(\"next\", \"/\"))  # F-6: open redirect",
+      "remediation": "Redirect only to relative paths or an allowlist of hosts; reject absolute and protocol-relative (//) URLs.",
+      "context": "code",
+      "fingerprint": "644644190f0b1a0d376a6d4c"
+    },
+    {
+      "rule_id": "CRYPTO-02",
+      "title": "Non-cryptographic RNG used for a security token",
+      "severity": "Medium",
+      "confidence": "medium",
+      "cwe": "CWE-338",
+      "owasp": [
+        "A04:2025"
+      ],
+      "module": "15 Cryptography",
+      "file": "app.py",
+      "line": 62,
+      "snippet": "reset_token = str(random.randint(100000, 999999))  # F-7: predictable reset token",
+      "remediation": "Use a CSPRNG: crypto.randomBytes / crypto.randomUUID, Python secrets, random_bytes(), SecureRandom.",
+      "context": "code",
+      "fingerprint": "3df1e3727c48750ec41caacc"
+    },
+    {
+      "rule_id": "DBG-01",
+      "title": "Debug mode enabled in code/config",
+      "severity": "Medium",
+      "confidence": "medium",
+      "cwe": "CWE-489",
+      "owasp": [
+        "A02:2025",
+        "API8:2023"
+      ],
+      "module": "1.3.3 / 5 Config",
+      "file": "app.py",
+      "line": 69,
+      "snippet": "app.run(host=\"0.0.0.0\", debug=True)  # F-8: debug mode (Werkzeug console = RCE)",
+      "remediation": "Ensure DEBUG=False / APP_DEBUG=false in production and load it from environment config.",
+      "context": "code",
+      "fingerprint": "341158f69ca2430bc48a9500"
+    },
+    {
+      "rule_id": "DOCKER-01",
+      "title": "Container base image uses :latest or no tag",
+      "severity": "Low",
+      "confidence": "high",
+      "cwe": "CWE-1357",
+      "owasp": [
+        "A03:2025"
+      ],
+      "module": "12A Container Security",
+      "file": "Dockerfile",
+      "line": 2,
+      "snippet": "FROM python:latest",
+      "remediation": "Pin base images to a specific version tag, ideally by digest (image@sha256:...).",
+      "context": "code",
+      "fingerprint": "b006a781bfea4a17278436c2"
+    }
+  ],
+  "installed_tools": {},
+  "tool_runs": []
+}

